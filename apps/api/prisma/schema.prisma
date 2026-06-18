@@ -1,0 +1,242 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RoleName {
+  PLAYER
+  ADMIN
+  MODERATOR
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum MatchMode {
+  PRACTICE
+  DUEL
+  TOURNAMENT
+  BATTLE_ROYALE
+}
+
+enum MatchStatus {
+  WAITING
+  ACTIVE
+  FINISHED
+  CANCELLED
+}
+
+enum RoomStatus {
+  WAITING
+  ACTIVE
+  CLOSED
+}
+
+enum MatchResult {
+  WIN
+  LOSE
+  DRAW
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        RoleName @unique
+  description String?
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id               String            @id @default(uuid()) @db.Uuid
+  roleId           Int               @map("role_id")
+  role             Role              @relation(fields: [roleId], references: [id])
+  name             String
+  username         String            @unique
+  email            String            @unique
+  passwordHash     String            @map("password_hash")
+  avatarUrl        String?           @map("avatar_url")
+  isActive         Boolean           @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  
+  ranking          Ranking?
+  userStats        UserStats?
+  matchPlayers     MatchPlayer[]
+  answers          Answer[]
+  userAchievements UserAchievement[]
+  createdQuestions Question[]        @relation("QuestionCreator")
+  wonMatches       Match[]           @relation("MatchWinner")
+
+  @@map("users")
+}
+
+model QuestionCategory {
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String     @unique
+  description String?
+  questions   Question[]
+
+  @@map("question_categories")
+}
+
+model Question {
+  id           String           @id @default(uuid()) @db.Uuid
+  categoryId   String           @map("category_id") @db.Uuid
+  category     QuestionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  questionText String           @map("question_text") @db.Text
+  options      Json             // JSON representing options (e.g. {"A": "1", "B": "2", ...})
+  correctAnswer String          @map("correct_answer")
+  explanation  String?          @db.Text
+  difficulty   Difficulty       @default(EASY)
+  baseScore    Int              @default(100) @map("base_score")
+  isActive     Boolean          @default(true) @map("is_active")
+  createdById  String?          @map("created_by_id") @db.Uuid
+  createdBy    User?            @relation("QuestionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  answers      Answer[]
+
+  @@map("questions")
+}
+
+model Match {
+  id             String        @id @default(uuid()) @db.Uuid
+  mode           MatchMode
+  status         MatchStatus   @default(WAITING)
+  totalQuestions Int           @default(10) @map("total_questions")
+  winnerUserId   String?       @map("winner_user_id") @db.Uuid
+  winner         User?         @relation("MatchWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
+  startedAt      DateTime?     @map("started_at")
+  endedAt        DateTime?     @map("ended_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  
+  battleRoom     BattleRoom?
+  matchPlayers   MatchPlayer[]
+  answers        Answer[]
+  leaderboardLogs LeaderboardLog[]
+
+  @@map("matches")
+}
+
+model BattleRoom {
+  id         String     @id @default(uuid()) @db.Uuid
+  matchId    String     @unique @map("match_id") @db.Uuid
+  match      Match      @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  roomCode   String     @unique @map("room_code")
+  maxPlayers Int        @default(2) @map("max_players")
+  status     RoomStatus @default(WAITING)
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@map("battle_rooms")
+}
+
+model MatchPlayer {
+  id             String       @id @default(uuid()) @db.Uuid
+  matchId        String       @map("match_id") @db.Uuid
+  match          Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id") @db.Uuid
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalScore     Int          @default(0) @map("total_score")
+  correctCount   Int          @default(0) @map("correct_count")
+  wrongCount     Int          @default(0) @map("wrong_count")
+  avgAnswerTime  Decimal      @default(0.0) @map("avg_answer_time") @db.Decimal(10, 2)
+  result         MatchResult?
+  joinedAt       DateTime     @default(now()) @map("joined_at")
+
+  @@unique([matchId, userId])
+  @@map("match_players")
+}
+
+model Answer {
+  id             String    @id @default(uuid()) @db.Uuid
+  matchId        String    @map("match_id") @db.Uuid
+  match          Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId         String    @map("user_id") @db.Uuid
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId     String    @map("question_id") @db.Uuid
+  question       Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedAnswer String    @map("selected_answer")
+  isCorrect      Boolean   @map("is_correct")
+  answerTimeMs   Int       @map("answer_time_ms")
+  scoreEarned    Int       @default(0) @map("score_earned")
+  submittedAt    DateTime  @default(now()) @map("submitted_at")
+
+  @@unique([matchId, userId, questionId])
+  @@map("answers")
+}
+
+model Ranking {
+  id              String           @id @default(uuid()) @db.Uuid
+  userId          String           @unique @map("user_id") @db.Uuid
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ratingPoint     Int              @default(1000) @map("rating_point")
+  tier            String           @default("Bronze")
+  currentRank     Int?             @map("current_rank")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  leaderboardLogs LeaderboardLog[]
+
+  @@map("rankings")
+}
+
+model LeaderboardLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  rankingId   String   @map("ranking_id") @db.Uuid
+  ranking     Ranking  @relation(fields: [rankingId], references: [id], onDelete: Cascade)
+  matchId     String?  @map("match_id") @db.Uuid
+  match       Match?   @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  oldPoint    Int      @map("old_point")
+  newPoint    Int      @map("new_point")
+  changePoint Int      @map("change_point")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("leaderboard_logs")
+}
+
+model Achievement {
+  id               String            @id @default(uuid()) @db.Uuid
+  name             String            @unique
+  description      String?
+  iconUrl          String?           @map("icon_url")
+  conditionType    String            @map("condition_type")
+  conditionValue   Int               @map("condition_value")
+  rewardPoint      Int               @default(0) @map("reward_point")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String      @map("achievement_id") @db.Uuid
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  earnedAt      DateTime    @default(now()) @map("earned_at")
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model UserStats {
+  id                     String   @id @default(uuid()) @db.Uuid
+  userId                 String   @unique @map("user_id") @db.Uuid
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalMatches           Int      @default(0) @map("total_matches")
+  totalWins              Int      @default(0) @map("total_wins")
+  totalLosses            Int      @default(0) @map("total_losses")
+  totalDraws             Int      @default(0) @map("total_draws")
+  totalQuestionsAnswered Int      @default(0) @map("total_questions_answered")
+  totalCorrectAnswers    Int      @default(0) @map("total_correct_answers")
+  accuracy               Decimal  @default(0.0) @db.Decimal(5, 2)
+  winRate                Decimal  @default(0.0) @map("win_rate") @db.Decimal(5, 2)
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@map("user_stats")
+}
