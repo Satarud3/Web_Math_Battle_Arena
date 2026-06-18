@@ -1,0 +1,1604 @@
+BLUEPRINT PROYEK WEB
+MATH BATTLE ARENA
+Math Battle Arena adalah web game edukasi matematika berbasis kompetisi real-time. Sistem ini mempertemukan pemain dalam mode latihan, duel 1 vs 1, turnamen, dan battle royale. Fokus utamanya adalah membuat belajar matematika terasa seperti bermain game kompetitif: ada skor, ranking, leaderboard, statistik, achievement, dan progress pemain.
+Rekomendasi arsitektur utama untuk proyek ini adalah Next.js + NestJS + PostgreSQL + Socket.IO, karena cocok untuk aplikasi modern, real-time, dan scalable. Next.js mendukung App Router, layout, Server/Client Components, dan routing berbasis file; NestJS cocok untuk backend TypeScript yang rapi dan scalable; Socket.IO mendukung komunikasi event-based dua arah berlatensi rendah; Prisma cocok untuk ORM TypeScript dengan PostgreSQL. (Next.js)
+
+1. ANALISIS MASALAH
+1.1 Masalah Utama
+Banyak siswa dan mahasiswa menganggap matematika sebagai pelajaran yang sulit, membosankan, dan menegangkan. Masalahnya bukan hanya pada materi, tetapi juga pada cara belajar yang sering terasa pasif, monoton, dan kurang memberi tantangan menyenangkan.
+Math Battle Arena hadir untuk menyelesaikan masalah tersebut dengan mengubah proses belajar matematika menjadi pengalaman bermain game kompetitif.
+1.2 Pain Point Pengguna
+Pain Point | Penjelasan | Solusi Math Battle Arena
+Matematika terasa membosankan | Latihan soal biasa kurang menarik | Dibuat seperti arena pertarungan
+Kurang motivasi belajar | Tidak ada target yang terasa seru | Ada ranking, level, badge, leaderboard
+Tidak tahu kemampuan sendiri | Siswa sulit mengukur progress | Disediakan statistik akurasi, win rate, streak
+Belajar sendirian terasa monoton | Tidak ada interaksi sosial | Ada duel real-time dan battle royale
+Soal latihan kurang bervariasi | Soal sering statis | Admin dapat mengelola bank soal
+Tidak ada feedback cepat | Siswa baru tahu nilai setelah selesai | Jawaban langsung dinilai real-time
+1.3 Mengapa Game Kompetitif Lebih Menarik?
+Metode game kompetitif lebih menarik karena pengguna tidak hanya “mengerjakan soal”, tetapi juga merasa sedang bertanding. Elemen seperti skor, waktu, peringkat, badge, dan kemenangan membuat pengguna terdorong untuk mencoba lagi.
+Perbedaan utamanya:
+Metode Biasa | Math Battle Arena
+Latihan soal statis | Duel soal real-time
+Nilai akhir saja | Skor langsung berubah
+Belajar sendiri | Bertanding dengan pemain lain
+Tidak ada ranking | Ada leaderboard
+Kurang visual | UI seperti arena game
+Motivasi rendah | Ada reward, badge, dan level
+1.4 Latar Belakang Akademik dan Profesional
+Secara akademik, proyek ini menggabungkan konsep e-learning, gamification, dan real-time web application. Gamification digunakan untuk meningkatkan motivasi belajar melalui elemen permainan seperti poin, level, ranking, tantangan, dan achievement.
+Secara profesional, proyek ini dapat dikembangkan menjadi platform edutech skala kecil. Versi MVP dapat digunakan untuk tugas kuliah, lomba inovasi pendidikan, atau startup mini. Versi lanjutannya dapat dikembangkan untuk sekolah, bimbel, komunitas matematika, atau platform latihan UTBK.
+
+2. ANALISIS KEBUTUHAN
+2.1 Kebutuhan Fungsional
+Kode | Kebutuhan Fungsional
+F-01 | Pengguna dapat registrasi akun
+F-02 | Pengguna dapat login dan logout
+F-03 | Player dapat melihat dashboard
+F-04 | Player dapat memilih mode latihan
+F-05 | Player dapat memilih mode duel 1 vs 1
+F-06 | Sistem dapat melakukan matchmaking
+F-07 | Player dapat menjawab soal real-time
+F-08 | Sistem dapat menghitung skor
+F-09 | Sistem dapat menentukan pemenang
+F-10 | Sistem dapat memperbarui ranking
+F-11 | Player dapat melihat leaderboard
+F-12 | Player dapat melihat profil dan statistik
+F-13 | Admin dapat mengelola soal
+F-14 | Admin dapat mengelola user
+F-15 | Moderator dapat memantau room battle
+F-16 | Sistem dapat mencatat riwayat match
+F-17 | Sistem dapat memberi achievement
+F-18 | Sistem dapat menampilkan hasil pertandingan
+2.2 Kebutuhan Non-Fungsional
+Aspek | Kebutuhan
+Performa | Waktu respon API ideal di bawah 500 ms untuk aksi umum
+Real-time | Update skor, jawaban, timer, dan status pemain harus real-time
+Keamanan | Password di-hash, validasi input, proteksi role, rate limit
+Skalabilitas | Struktur mendukung banyak room dan banyak pemain
+Aksesibilitas | Kontras warna jelas, ukuran font nyaman, navigasi keyboard dasar
+Responsif | Tampilan mendukung desktop, tablet, dan mobile
+Maintainability | Kode dipisahkan menjadi controller, service, model, route
+Reliability | Jika pemain disconnect, sistem menangani timeout/reconnect
+Auditability | Aktivitas penting seperti match, skor, dan perubahan soal dicatat
+2.3 Kebutuhan dari Sisi Pengguna
+Pengguna | Kebutuhan
+Guest | Melihat landing page, leaderboard publik, register/login
+Player | Bermain, latihan, duel, melihat ranking, statistik
+Admin | Mengelola soal, user, kategori, match, leaderboard
+Moderator | Memantau permainan, menangani laporan, menjaga fair play
+2.4 Kebutuhan Data
+Data utama yang dibutuhkan:
+Data | Contoh
+User | nama, email, password, avatar, role
+Role | guest, player, admin, moderator
+Question | soal, pilihan jawaban, jawaban benar, tingkat kesulitan
+Match | mode, status, waktu mulai, waktu selesai
+Answer | jawaban pemain, benar/salah, waktu menjawab
+Ranking | point, tier, rank, win rate
+User Stats | total match, menang, kalah, akurasi
+Achievement | badge, syarat, reward point
+Battle Room | kode room, kapasitas, status room
+2.5 Kebutuhan Keamanan
+Area | Implementasi
+Password | Gunakan bcrypt/argon2
+Auth | JWT/session token
+Role Access | Middleware role-based access control
+Input | Validasi semua input
+Soal | Jawaban benar tidak dikirim ke frontend sebelum selesai
+Anti-cheat dasar | Batasi waktu jawab, log aktivitas, randomisasi soal
+Rate limit | Batasi request login dan submit answer
+Socket auth | Socket harus membawa token valid
+Admin panel | Hanya role admin/moderator yang boleh akses
+2.6 Kebutuhan Performa
+Untuk real-time, sistem harus memisahkan proses:
+HTTP API untuk login, profil, leaderboard, soal, admin.
+Socket server untuk duel, timer, jawaban, skor, reconnect.
+Database untuk penyimpanan permanen.
+Cache/Redis untuk queue matchmaking dan room aktif pada versi lanjut.
+2.7 Kebutuhan Aksesibilitas
+Warna teks dan background harus kontras.
+Tombol harus jelas dan besar.
+Feedback benar/salah tidak hanya memakai warna, tetapi juga ikon dan teks.
+Arena duel harus tetap terbaca di layar HP.
+Hindari animasi berlebihan yang mengganggu fokus.
+
+3. ANALISIS PENGGUNA
+3.1 Jenis Pengguna
+Jenis Pengguna | Karakteristik | Kebutuhan | Tujuan
+Guest | Belum login | Melihat fitur, register | Tertarik mencoba
+Player | Siswa/mahasiswa/pemain | Bermain, latihan, ranking | Meningkatkan kemampuan
+Admin | Pengelola sistem | Kelola soal, user, match | Menjaga konten dan sistem
+Moderator | Pengawas komunitas | Pantau room, laporan | Menjaga permainan adil
+3.2 User Persona
+A. Guest
+Elemen | Deskripsi
+Nama | Raka
+Usia | 16 tahun
+Status | Siswa SMA
+Tujuan | Ingin tahu apakah web ini seru
+Masalah | Takut matematika sulit
+Kebutuhan | Tampilan menarik, demo mode, ajakan register
+B. Player
+Elemen | Deskripsi
+Nama | Sinta
+Usia | 19 tahun
+Status | Mahasiswa
+Tujuan | Latihan matematika dengan cara seru
+Masalah | Bosan latihan soal biasa
+Kebutuhan | Duel, statistik, ranking, mode latihan
+C. Admin
+Elemen | Deskripsi
+Nama | Pak Budi
+Usia | 35 tahun
+Status | Guru/Admin platform
+Tujuan | Mengelola soal dan memantau pemain
+Masalah | Butuh sistem soal yang rapi
+Kebutuhan | CRUD soal, kategori, user, laporan match
+D. Moderator
+Elemen | Deskripsi
+Nama | Dimas
+Usia | 22 tahun
+Status | Pengawas komunitas
+Tujuan | Menjaga permainan tetap fair
+Masalah | Ada potensi toxic/cheating
+Kebutuhan | Monitor room, laporan, suspend user
+
+4. BUSINESS PROCESS
+4.1 Alur Umum Sistem
+User membuka website
+↓
+Melihat landing page
+↓
+Register / Login
+↓
+Masuk dashboard player
+↓
+Memilih mode permainan
+↓
+Sistem mencari lawan / membuat room
+↓
+Pertandingan dimulai
+↓
+Soal dikirim secara bertahap
+↓
+Player menjawab soal
+↓
+Sistem menghitung skor
+↓
+Pertandingan selesai
+↓
+Sistem menentukan pemenang
+↓
+Ranking dan statistik diperbarui
+↓
+Player melihat result page dan leaderboard
+4.2 Alur Registrasi
+Tahap | Proses
+1 | Guest membuka halaman register
+2 | Guest mengisi nama, email, password
+3 | Sistem memvalidasi data
+4 | Password di-hash
+5 | Akun dibuat sebagai player
+6 | User diarahkan ke login/dashboard
+4.3 Alur Login
+Tahap | Proses
+1 | User membuka halaman login
+2 | User memasukkan email dan password
+3 | Backend memeriksa akun
+4 | Jika valid, token/session dibuat
+5 | User diarahkan ke dashboard
+6 | Jika gagal, tampil pesan error
+4.4 Alur Pilih Mode
+Mode utama:
+Mode | Deskripsi
+Latihan | Player mengerjakan soal tanpa lawan
+Duel 1 vs 1 | Dua player bertanding real-time
+Turnamen | Banyak player bertanding dalam bracket
+Battle Royale | Banyak player dalam satu room, eliminasi bertahap
+4.5 Alur Matchmaking
+Player klik "Cari Lawan"
+↓
+Frontend mengirim event ke socket server
+↓
+Socket server memasukkan player ke queue
+↓
+Jika ada player lain dengan level/ranking cocok
+↓
+Sistem membuat battle room
+↓
+Kedua player masuk room
+↓
+Soal disiapkan
+↓
+Duel dimulai
+4.6 Alur Duel Soal
+Tahap | Proses
+1 | Sistem mengirim soal pertama
+2 | Timer berjalan
+3 | Player menjawab
+4 | Sistem menyimpan jawaban
+5 | Sistem memberi skor
+6 | Soal berikutnya dikirim
+7 | Setelah semua soal selesai, sistem hitung total skor
+4.7 Alur Penilaian
+Skor dapat dihitung dari:
+Komponen | Penjelasan
+Jawaban benar | +100 poin
+Kecepatan | Bonus berdasarkan sisa waktu
+Jawaban salah | 0 atau penalti ringan
+Streak | Bonus jika benar berturut-turut
+Difficulty | Soal sulit memberi poin lebih besar
+Contoh rumus:
+Skor = poin_dasar + bonus_waktu + bonus_streak + bonus_difficulty
+4.8 Alur Update Ranking
+Pertandingan selesai
+↓
+Sistem menentukan pemenang
+↓
+Ranking point pemenang bertambah
+↓
+Ranking point pemain kalah berkurang sedikit
+↓
+Statistik user diperbarui
+↓
+Leaderboard log dicatat
+4.9 Proses Bisnis Tiap Mode
+Mode | Proses
+Latihan | Player pilih kategori → jawab soal → sistem tampilkan nilai → statistik latihan diperbarui
+Duel 1 vs 1 | Player cari lawan → room dibuat → duel soal → skor dibandingkan → ranking update
+Turnamen | Admin/player buat turnamen → peserta daftar → bracket dibuat → pemenang maju babak berikut
+Battle Royale | Banyak player masuk room → menjawab soal cepat → player terendah dieliminasi → tersisa pemenang
+
+5. FLOWCHART
+5.1 Flowchart Login
+flowchart TD
+A[Mulai] --> B[Buka Halaman Login]
+B --> C[Input Email dan Password]
+C --> D{Data Lengkap?}
+D -- Tidak --> E[Tampilkan Error]
+E --> C
+D -- Ya --> F[Kirim ke Backend]
+F --> G{Akun Valid?}
+G -- Tidak --> H[Tampilkan Login Gagal]
+H --> C
+G -- Ya --> I[Buat Session/JWT]
+I --> J[Arahkan ke Dashboard]
+J --> K[Selesai]
+5.2 Flowchart Matchmaking
+flowchart TD
+A[Player Klik Cari Lawan] --> B[Kirim Event Join Queue]
+B --> C[Socket Server Cek Queue]
+C --> D{Ada Lawan Cocok?}
+D -- Tidak --> E[Tunggu di Queue]
+E --> C
+D -- Ya --> F[Buat Battle Room]
+F --> G[Masukkan Player ke Room]
+G --> H[Generate Soal]
+H --> I[Kirim Event Match Found]
+I --> J[Duel Dimulai]
+5.3 Flowchart Duel Soal
+flowchart TD
+A[Duel Dimulai] --> B[Kirim Soal]
+B --> C[Timer Berjalan]
+C --> D[Player Submit Jawaban]
+D --> E[Validasi Jawaban]
+E --> F[Hitung Skor]
+F --> G{Masih Ada Soal?}
+G -- Ya --> B
+G -- Tidak --> H[Hitung Total Skor]
+H --> I[Tentukan Pemenang]
+I --> J[Simpan Hasil Match]
+J --> K[Tampilkan Result]
+5.4 Flowchart Perhitungan Skor
+flowchart TD
+A[Jawaban Diterima] --> B{Jawaban Benar?}
+B -- Tidak --> C[Skor 0 / Penalti]
+B -- Ya --> D[Tambah Poin Dasar]
+D --> E[Hitung Bonus Waktu]
+E --> F[Hitung Bonus Streak]
+F --> G[Hitung Bonus Difficulty]
+G --> H[Simpan Skor Player]
+C --> H
+H --> I[Update Scoreboard Real-time]
+5.5 Flowchart Penentuan Pemenang
+flowchart TD
+A[Match Selesai] --> B[Ambil Total Skor Semua Player]
+B --> C{Ada Skor Tertinggi Tunggal?}
+C -- Ya --> D[Tetapkan Pemenang]
+C -- Tidak --> E[Cek Akurasi]
+E --> F{Masih Seri?}
+F -- Ya --> G[Cek Waktu Jawab Tercepat]
+F -- Tidak --> D
+G --> D
+D --> H[Update Ranking dan Statistik]
+H --> I[Tampilkan Result Page]
+
+6. USE CASE
+Use Case | Aktor | Tujuan | Deskripsi | Precondition | Postcondition
+Register | Guest | Membuat akun | Guest mengisi data pendaftaran | Belum login | Akun player dibuat
+Login | Guest/Player/Admin | Masuk sistem | User memasukkan email/password | Akun tersedia | Session aktif
+Logout | Semua user login | Keluar sistem | User mengakhiri sesi | Sedang login | Session dihapus
+Ikut Duel | Player | Bertanding | Player memilih mode duel | Login | Player masuk matchmaking
+Cari Lawan | Player | Mendapat opponent | Sistem mencari lawan seimbang | Player dalam queue | Room duel dibuat
+Menjawab Soal | Player | Mengumpulkan skor | Player menjawab soal saat duel | Match aktif | Jawaban tersimpan
+Lihat Leaderboard | Guest/Player | Melihat ranking | Sistem menampilkan pemain terbaik | Data ranking tersedia | Leaderboard tampil
+Lihat Profil | Player | Melihat identitas | Player membuka profil | Login | Profil tampil
+Lihat Statistik | Player | Melihat performa | Sistem menampilkan win rate, akurasi | Login | Statistik tampil
+Kelola Soal | Admin | CRUD soal | Admin tambah/edit/hapus soal | Admin login | Bank soal berubah
+Kelola User | Admin | Mengatur user | Admin lihat, suspend, ubah role | Admin login | Data user berubah
+Monitor Room | Moderator | Mengawasi match | Moderator melihat room aktif | Moderator login | Room terpantau
+Buat Achievement | Admin | Membuat badge | Admin menambah achievement | Admin login | Achievement tersedia
+Lihat Riwayat Match | Player | Evaluasi hasil | Player melihat match sebelumnya | Login | Riwayat tampil
+Kelola Kategori | Admin | Atur topik soal | Admin CRUD kategori | Admin login | Kategori tersimpan
+
+7. ACTIVITY DIAGRAM
+7.1 Aktivitas Registrasi
+flowchart TD
+A[Guest membuka register] --> B[Mengisi nama, email, password]
+B --> C[Sistem validasi input]
+C --> D{Valid?}
+D -- Tidak --> E[Tampilkan error]
+E --> B
+D -- Ya --> F[Hash password]
+F --> G[Simpan user ke database]
+G --> H[Buat data user_stats dan ranking]
+H --> I[Arahkan ke login/dashboard]
+7.2 Aktivitas Login
+flowchart TD
+A[User membuka login] --> B[Input email password]
+B --> C[Backend validasi akun]
+C --> D{Email ditemukan?}
+D -- Tidak --> E[Login gagal]
+D -- Ya --> F{Password benar?}
+F -- Tidak --> E
+F -- Ya --> G[Buat token/session]
+G --> H[Cek role user]
+H --> I{Role}
+I -- Player --> J[Dashboard Player]
+I -- Admin --> K[Admin Panel]
+I -- Moderator --> L[Moderator Panel]
+7.3 Aktivitas Duel Matematika
+flowchart TD
+A[Player pilih Duel] --> B[Masuk matchmaking]
+B --> C[Sistem menemukan lawan]
+C --> D[Room dibuat]
+D --> E[Soal di-generate]
+E --> F[Timer mulai]
+F --> G[Player menjawab soal]
+G --> H[Sistem menilai jawaban]
+H --> I[Skor diperbarui real-time]
+I --> J{Soal habis?}
+J -- Tidak --> F
+J -- Ya --> K[Sistem menentukan pemenang]
+K --> L[Ranking dan statistik diperbarui]
+L --> M[Result page tampil]
+7.4 Aktivitas Pembuatan Soal Admin
+flowchart TD
+A[Admin login] --> B[Buka menu Kelola Soal]
+B --> C[Klik Tambah Soal]
+C --> D[Isi pertanyaan, opsi, jawaban, kategori, level]
+D --> E[Validasi input]
+E --> F{Valid?}
+F -- Tidak --> G[Tampilkan error]
+G --> D
+F -- Ya --> H[Simpan soal]
+H --> I[Soal masuk bank soal]
+I --> J[Soal dapat dipakai dalam game]
+
+8. SEQUENCE DIAGRAM
+8.1 Register
+sequenceDiagram
+actor User
+participant FE as Frontend
+participant BE as Backend API
+participant DB as Database
+
+User->>FE: Isi form register
+FE->>BE: POST /auth/register
+BE->>BE: Validasi input
+BE->>DB: Cek email
+DB-->>BE: Email tersedia
+BE->>BE: Hash password
+BE->>DB: Insert users, rankings, user_stats
+DB-->>BE: Success
+BE-->>FE: Register berhasil
+FE-->>User: Tampilkan sukses
+8.2 Login
+sequenceDiagram
+actor User
+participant FE as Frontend
+participant BE as Backend API
+participant DB as Database
+
+User->>FE: Input email dan password
+FE->>BE: POST /auth/login
+BE->>DB: Cari user berdasarkan email
+DB-->>BE: Data user
+BE->>BE: Verifikasi password
+BE->>BE: Generate token/session
+BE-->>FE: Token dan data user
+FE-->>User: Masuk dashboard
+8.3 Matchmaking Duel
+sequenceDiagram
+actor Player
+participant FE as Frontend
+participant WS as Socket Server
+participant DB as Database
+
+Player->>FE: Klik Cari Lawan
+FE->>WS: join_queue(token, mode)
+WS->>WS: Validasi token
+WS->>WS: Masukkan ke queue
+WS->>WS: Cari lawan cocok
+WS->>DB: Buat match dan battle_room
+DB-->>WS: Room created
+WS-->>FE: match_found(room_id)
+FE-->>Player: Masuk arena duel
+8.4 Pengiriman Jawaban
+sequenceDiagram
+actor Player
+participant FE as Frontend
+participant WS as Socket Server
+participant DB as Database
+
+Player->>FE: Pilih jawaban
+FE->>WS: submit_answer(room_id, question_id, answer)
+WS->>WS: Cek waktu dan validasi
+WS->>DB: Ambil jawaban benar
+DB-->>WS: Correct answer
+WS->>WS: Hitung skor
+WS->>DB: Simpan answer
+WS-->>FE: answer_result dan updated_score
+FE-->>Player: Feedback benar/salah
+8.5 Update Skor
+sequenceDiagram
+participant WS as Socket Server
+participant DB as Database
+participant FE1 as Player A Frontend
+participant FE2 as Player B Frontend
+
+WS->>DB: Simpan skor terbaru
+DB-->>WS: Success
+WS-->>FE1: scoreboard_update
+WS-->>FE2: scoreboard_update
+8.6 Menentukan Pemenang
+sequenceDiagram
+participant WS as Socket Server
+participant DB as Database
+participant FE as Frontend
+
+WS->>DB: Ambil total skor match
+DB-->>WS: Data skor semua player
+WS->>WS: Tentukan pemenang
+WS->>DB: Update match result
+WS->>DB: Update rankings dan user_stats
+WS->>DB: Insert leaderboard_logs
+WS-->>FE: match_finished(result)
+
+9. ERD
+9.1 Entitas Utama
+Entitas | Fungsi
+roles | Menyimpan role user
+users | Menyimpan akun pengguna
+question_categories | Kategori/topik soal
+questions | Bank soal matematika
+matches | Data pertandingan
+battle_rooms | Room real-time
+match_players | Peserta dalam match
+answers | Jawaban pemain
+rankings | Ranking point player
+leaderboard_logs | Riwayat perubahan leaderboard
+achievements | Daftar achievement
+user_achievements | Achievement yang diperoleh user
+user_stats | Statistik performa user
+9.2 ERD Mermaid
+erDiagram
+roles ||--o{ users : has
+users ||--o{ match_players : joins
+users ||--o{ answers : submits
+users ||--|| rankings : owns
+users ||--|| user_stats : has
+users ||--o{ user_achievements : earns
+
+question_categories ||--o{ questions : contains
+questions ||--o{ answers : answered_in
+
+matches ||--o{ match_players : has
+matches ||--o{ answers : records
+matches ||--|| battle_rooms : uses
+
+battle_rooms ||--|| matches : belongs_to
+
+rankings ||--o{ leaderboard_logs : logged
+achievements ||--o{ user_achievements : awarded
+
+roles {
+  int id PK
+  varchar name
+}
+
+users {
+  uuid id PK
+  int role_id FK
+  varchar name
+  varchar email UK
+  varchar password_hash
+  varchar avatar_url
+  boolean is_active
+  timestamp created_at
+}
+
+question_categories {
+  uuid id PK
+  varchar name
+  text description
+}
+
+questions {
+  uuid id PK
+  uuid category_id FK
+  text question_text
+  jsonb options
+  varchar correct_answer
+  varchar difficulty
+  int base_score
+}
+
+matches {
+  uuid id PK
+  varchar mode
+  varchar status
+  timestamp started_at
+  timestamp ended_at
+  uuid winner_user_id FK
+}
+
+battle_rooms {
+  uuid id PK
+  uuid match_id FK
+  varchar room_code UK
+  int max_players
+  varchar status
+}
+
+match_players {
+  uuid id PK
+  uuid match_id FK
+  uuid user_id FK
+  int total_score
+  varchar result
+}
+
+answers {
+  uuid id PK
+  uuid match_id FK
+  uuid user_id FK
+  uuid question_id FK
+  varchar selected_answer
+  boolean is_correct
+  int score_earned
+}
+
+rankings {
+  uuid id PK
+  uuid user_id FK
+  int rating_point
+  varchar tier
+}
+
+leaderboard_logs {
+  uuid id PK
+  uuid ranking_id FK
+  int old_point
+  int new_point
+}
+
+achievements {
+  uuid id PK
+  varchar name
+  text description
+}
+
+user_achievements {
+  uuid id PK
+  uuid user_id FK
+  uuid achievement_id FK
+}
+
+user_stats {
+  uuid id PK
+  uuid user_id FK
+  int total_matches
+  int total_wins
+  int total_losses
+  numeric accuracy
+}
+9.3 Kardinalitas
+Relasi | Kardinalitas | Penjelasan
+roles → users | 1 : N | Satu role dimiliki banyak user
+users → rankings | 1 : 1 | Satu player punya satu ranking
+users → user_stats | 1 : 1 | Satu player punya satu statistik
+matches → match_players | 1 : N | Satu match memiliki beberapa peserta
+matches → answers | 1 : N | Satu match memiliki banyak jawaban
+questions → answers | 1 : N | Satu soal dapat dijawab berkali-kali di match berbeda
+question_categories → questions | 1 : N | Satu kategori memiliki banyak soal
+achievements → user_achievements | 1 : N | Satu achievement bisa dimiliki banyak user
+users → user_achievements | 1 : N | Satu user bisa punya banyak achievement
+
+10. DESAIN DATABASE
+10.1 Tabel Database
+roles
+Field | Type | Key | Keterangan
+id | SERIAL | PK | ID role
+name | VARCHAR(50) | UNIQUE | guest/player/admin/moderator
+description | TEXT |  | Deskripsi role
+users
+Field | Type | Key | Keterangan
+id | UUID | PK | ID user
+role_id | INT | FK | Relasi ke roles
+name | VARCHAR(100) |  | Nama user
+username | VARCHAR(50) | UNIQUE | Username unik
+email | VARCHAR(150) | UNIQUE | Email
+password_hash | TEXT |  | Password hash
+avatar_url | TEXT |  | Foto profil
+is_active | BOOLEAN | INDEX | Status aktif
+created_at | TIMESTAMP |  | Tanggal dibuat
+updated_at | TIMESTAMP |  | Tanggal update
+question_categories
+Field | Type | Key | Keterangan
+id | UUID | PK | ID kategori
+name | VARCHAR(100) | UNIQUE | Nama kategori
+description | TEXT |  | Deskripsi
+questions
+Field | Type | Key | Keterangan
+id | UUID | PK | ID soal
+category_id | UUID | FK | Kategori soal
+question_text | TEXT |  | Teks soal
+options | JSONB |  | Pilihan jawaban
+correct_answer | VARCHAR(10) |  | Jawaban benar
+explanation | TEXT |  | Pembahasan
+difficulty | VARCHAR(20) | INDEX | easy/medium/hard
+base_score | INT |  | Skor dasar
+is_active | BOOLEAN | INDEX | Status soal
+created_by | UUID | FK | Admin pembuat
+matches
+Field | Type | Key | Keterangan
+id | UUID | PK | ID match
+mode | VARCHAR(30) | INDEX | practice/duel/tournament/battle_royale
+status | VARCHAR(30) | INDEX | waiting/active/finished/cancelled
+total_questions | INT |  | Jumlah soal
+started_at | TIMESTAMP |  | Mulai
+ended_at | TIMESTAMP |  | Selesai
+winner_user_id | UUID | FK nullable | Pemenang
+battle_rooms
+Field | Type | Key | Keterangan
+id | UUID | PK | ID room
+match_id | UUID | FK UNIQUE | Relasi match
+room_code | VARCHAR(30) | UNIQUE | Kode room
+max_players | INT |  | Maksimal pemain
+status | VARCHAR(30) | INDEX | waiting/active/closed
+created_at | TIMESTAMP |  | Dibuat
+match_players
+Field | Type | Key | Keterangan
+id | UUID | PK | ID peserta
+match_id | UUID | FK | Match
+user_id | UUID | FK | Player
+total_score | INT | INDEX | Total skor
+correct_count | INT |  | Jumlah benar
+wrong_count | INT |  | Jumlah salah
+avg_answer_time | NUMERIC |  | Rata-rata waktu
+result | VARCHAR(20) |  | win/lose/draw
+joined_at | TIMESTAMP |  | Waktu join
+answers
+Field | Type | Key | Keterangan
+id | UUID | PK | ID jawaban
+match_id | UUID | FK INDEX | Match
+user_id | UUID | FK INDEX | Player
+question_id | UUID | FK | Soal
+selected_answer | VARCHAR(10) |  | Jawaban player
+is_correct | BOOLEAN | INDEX | Status benar
+answer_time_ms | INT |  | Waktu menjawab
+score_earned | INT |  | Skor
+submitted_at | TIMESTAMP |  | Waktu submit
+rankings
+Field | Type | Key | Keterangan
+id | UUID | PK | ID ranking
+user_id | UUID | FK UNIQUE | Player
+rating_point | INT | INDEX | Poin ranking
+tier | VARCHAR(30) | INDEX | Bronze/Silver/Gold
+current_rank | INT | INDEX | Posisi
+updated_at | TIMESTAMP |  | Update
+leaderboard_logs
+Field | Type | Key | Keterangan
+id | UUID | PK | ID log
+ranking_id | UUID | FK | Ranking
+match_id | UUID | FK | Match
+old_point | INT |  | Poin lama
+new_point | INT |  | Poin baru
+change_point | INT |  | Selisih
+created_at | TIMESTAMP |  | Waktu log
+achievements
+Field | Type | Key | Keterangan
+id | UUID | PK | ID achievement
+name | VARCHAR(100) | UNIQUE | Nama badge
+description | TEXT |  | Deskripsi
+icon_url | TEXT |  | Ikon
+condition_type | VARCHAR(50) |  | win_count/streak/accuracy
+condition_value | INT |  | Target
+reward_point | INT |  | Bonus
+user_achievements
+Field | Type | Key | Keterangan
+id | UUID | PK | ID
+user_id | UUID | FK | Player
+achievement_id | UUID | FK | Achievement
+earned_at | TIMESTAMP |  | Waktu didapat
+user_stats
+Field | Type | Key | Keterangan
+id | UUID | PK | ID statistik
+user_id | UUID | FK UNIQUE | Player
+total_matches | INT |  | Total match
+total_wins | INT |  | Menang
+total_losses | INT |  | Kalah
+total_draws | INT |  | Seri
+total_questions_answered | INT |  | Total soal
+total_correct_answers | INT |  | Total benar
+accuracy | NUMERIC(5,2) | INDEX | Akurasi
+win_rate | NUMERIC(5,2) | INDEX | Win rate
+10.2 Normalisasi 3NF
+Tahap | Penerapan
+1NF | Semua field bernilai atomik, kecuali options yang sengaja memakai JSONB untuk pilihan jawaban
+2NF | Semua field non-key bergantung penuh pada primary key
+3NF | Tidak ada ketergantungan transitif; role dipisah, kategori dipisah, statistik dipisah
+Catatan: options memakai JSONB karena pilihan jawaban bersifat semi-terstruktur. PostgreSQL mendukung tipe JSONB dan indexing, sehingga cocok untuk data opsi soal yang fleksibel. (PostgreSQL)
+
+11. WIREFRAME
+11.1 Landing Page
++--------------------------------------------------+
+| LOGO Math Battle Arena | Home | Mode | Rank | Login |
++--------------------------------------------------+
+| HERO SECTION                                      |
+| Judul: Belajar Matematika Seperti Bertarung       |
+| Subjudul: Duel real-time, ranking, leaderboard    |
+| [Mulai Bermain] [Lihat Leaderboard]              |
++--------------------------------------------------+
+| FITUR UTAMA                                      |
+| [Duel 1v1] [Latihan] [Battle Royale] [Ranking]   |
++--------------------------------------------------+
+| HOW IT WORKS                                     |
+| 1. Register → 2. Pilih Mode → 3. Bertanding       |
++--------------------------------------------------+
+| TOP LEADERBOARD PREVIEW                          |
++--------------------------------------------------+
+| FOOTER                                           |
++--------------------------------------------------+
+11.2 Login
++-----------------------------+
+| Logo Math Battle Arena      |
+| Email                       |
+| Password                    |
+| [Login]                     |
+| Belum punya akun? Register  |
++-----------------------------+
+11.3 Register
++-----------------------------+
+| Nama                        |
+| Username                    |
+| Email                       |
+| Password                    |
+| Konfirmasi Password         |
+| [Daftar Sekarang]           |
++-----------------------------+
+11.4 Dashboard Player
++--------------------------------------------------+
+| Sidebar: Dashboard, Duel, Latihan, Rank, Profil  |
++--------------------------------------------------+
+| Welcome, Player                                  |
+| Card: Rank | Win Rate | Accuracy | Total Match   |
+| [Cari Duel] [Mode Latihan] [Battle Royale]       |
+| Riwayat Pertandingan Terbaru                     |
+| Achievement Terbaru                              |
++--------------------------------------------------+
+11.5 Arena Duel
++--------------------------------------------------+
+| Player A          TIMER 00:15          Player B  |
+| Score: 320                              Score: 280|
++--------------------------------------------------+
+| Soal: 12 x 8 + 4 = ?                            |
+| [A. 96] [B. 100] [C. 104] [D. 108]              |
++--------------------------------------------------+
+| Progress Soal: 4/10                              |
+| Live Event: Player B menjawab benar              |
++--------------------------------------------------+
+11.6 Result Page
++--------------------------------------------------+
+| HASIL PERTANDINGAN                               |
+| Winner: Player A                                 |
+| Score: 850 vs 730                                |
+| Accuracy: 80% vs 70%                             |
+| Rank Point: +25                                  |
+| [Main Lagi] [Lihat Leaderboard]                  |
++--------------------------------------------------+
+11.7 Leaderboard
++--------------------------------------------------+
+| Leaderboard                                      |
+| Filter: Global | Mingguan | Bulanan              |
+| Rank | Avatar | Username | Tier | Point | Winrate |
++--------------------------------------------------+
+11.8 Profile
++--------------------------------------------------+
+| Avatar | Username | Tier                         |
+| Bio / Info Player                                |
+| Statistik: Match, Win, Loss, Accuracy, Streak    |
+| Achievement Grid                                 |
+| Riwayat Match                                    |
++--------------------------------------------------+
+11.9 Admin Panel
++--------------------------------------------------+
+| Sidebar Admin                                    |
+| Dashboard | Users | Questions | Matches | Reports |
++--------------------------------------------------+
+| Statistik Sistem                                 |
+| Total User | Total Soal | Match Hari Ini | Active Room |
+| Table Management                                 |
++--------------------------------------------------+
+
+12. UI DESIGN
+12.1 Gaya Visual
+Konsep visual: futuristic arena, neon, kompetitif, edukatif.
+Elemen | Rekomendasi
+Tema | Dark mode modern dengan aksen neon
+Warna utama | Navy gelap, biru elektrik, ungu neon
+Warna aksen | Kuning/oranye untuk skor dan CTA
+Font heading | Orbitron / Rajdhani / Poppins
+Font body | Inter / Poppins
+Button | Rounded, gradient, hover glow
+Card | Glassmorphism ringan, border neon
+Leaderboard | Rank card dengan medal gold/silver/bronze
+Arena duel | Split layout kiri-kanan, timer besar di tengah
+Tailwind CSS cocok untuk membangun desain seperti ini karena framework tersebut menyediakan utility class yang bisa dikombinasikan langsung dalam markup untuk membuat UI modern secara cepat. (Tailwind CSS)
+12.2 Palet Warna
+Fungsi | Warna
+Background utama | #0B1020
+Card | #111A33
+Primary | #2563EB
+Secondary | #7C3AED
+Accent | #F59E0B
+Success | #22C55E
+Danger | #EF4444
+Text utama | #F8FAFC
+Text sekunder | #94A3B8
+12.3 Style Button
+Button | Desain
+Primary | Gradient biru-ungu, teks putih
+Secondary | Border neon, background transparan
+Danger | Merah, digunakan untuk suspend/delete
+Success | Hijau, digunakan untuk status benar/aktif
+Disabled | Abu gelap, opacity 50%
+12.4 Komponen Leaderboard
+Leaderboard sebaiknya menampilkan:
+Ranking number.
+Avatar.
+Username.
+Tier.
+Rating point.
+Win rate.
+Badge khusus top 3.
+Filter harian/mingguan/bulanan/global.
+12.5 Tampilan Arena Duel
+Arena harus menjadi halaman paling menarik.
+Komponen penting:
+Komponen | Fungsi
+Timer besar | Memberi tekanan kompetitif
+Scoreboard | Menampilkan skor real-time
+Avatar player | Membuat duel terasa personal
+Question card | Fokus utama pemain
+Answer buttons | Pilihan jawaban besar dan mudah ditekan
+Progress bar | Menunjukkan soal keberapa
+Feedback | Animasi benar/salah
+Live log | Info lawan sudah menjawab
+12.6 Prinsip UX
+Prinsip | Penerapan
+Clarity | Tombol utama jelas: Main, Cari Lawan, Jawab
+Fast feedback | Setelah menjawab langsung muncul feedback
+Low friction | Guest langsung paham cara bermain
+Motivation | Badge, point, ranking, streak
+Responsiveness | Arena tetap nyaman di HP
+Error prevention | Disable tombol setelah jawaban dikirim
+Fairness | Timer sama untuk semua pemain
+
+13. PROTOTYPE
+13.1 Prototype Landing Page
+Interaksi:
+User membuka website.
+Hero menampilkan animasi angka dan simbol matematika.
+Tombol “Mulai Bermain” mengarah ke register/login.
+Tombol “Lihat Leaderboard” mengarah ke leaderboard publik.
+Card fitur memiliki hover effect.
+Animasi:
+Hero text fade-in.
+Card fitur naik sedikit saat hover.
+Background memakai partikel angka bergerak perlahan.
+13.2 Prototype Dashboard Player
+Interaksi:
+Player login.
+Dashboard menampilkan statistik.
+Player klik “Cari Duel”.
+Sistem membuka modal matchmaking.
+Jika lawan ditemukan, halaman berpindah ke arena.
+Feedback:
+Loading matchmaking.
+Animasi “Searching opponent…”
+Suara/efek visual saat match ditemukan.
+13.3 Prototype Arena Duel
+Interaksi:
+Player masuk room.
+Countdown 3, 2, 1.
+Soal tampil.
+Player memilih jawaban.
+Tombol terkunci setelah menjawab.
+Feedback benar/salah muncul.
+Skor berubah real-time.
+Setelah semua soal, result page tampil.
+Animasi:
+Countdown besar.
+Timer berubah warna ketika waktu hampir habis.
+Jawaban benar glow hijau.
+Jawaban salah shake merah.
+Skor bertambah dengan animasi angka.
+13.4 Prototype Result Page
+Interaksi:
+Menampilkan pemenang.
+Menampilkan ringkasan skor.
+Menampilkan perubahan ranking.
+Tombol “Main Lagi” kembali ke matchmaking.
+Tombol “Leaderboard” membuka ranking.
+13.5 User Journey
+Masuk website
+↓
+Melihat landing page
+↓
+Register/Login
+↓
+Masuk dashboard
+↓
+Klik Cari Duel
+↓
+Matchmaking
+↓
+Masuk arena
+↓
+Menjawab soal
+↓
+Skor update real-time
+↓
+Match selesai
+↓
+Result page
+↓
+Ranking update
+↓
+User main lagi / lihat leaderboard
+
+14. PILIH TEKNOLOGI
+14.1 Stack Rekomendasi Utama
+Layer | Teknologi | Alasan
+Frontend | Next.js + TypeScript | Cocok untuk UI modern, routing rapi, SEO landing page
+Styling | Tailwind CSS | Cepat membuat UI custom modern
+Backend | NestJS + TypeScript | Struktur backend rapi, cocok untuk API besar
+Database | PostgreSQL | Relasional kuat, cocok untuk ranking dan histori
+ORM | Prisma | Type-safe, migrasi mudah, cocok dengan TypeScript
+Real-time | Socket.IO | Cocok untuk event duel, room, scoreboard
+Auth | Auth.js / JWT custom | Mendukung autentikasi modern
+Deployment | Vercel + Railway/Fly.io/VPS | Frontend dan backend bisa dipisah
+Cache lanjut | Redis | Untuk queue matchmaking dan room aktif
+Auth.js menyediakan library autentikasi lintas framework modern dan Next.js juga merekomendasikan penggunaan authentication library untuk keamanan dan kesederhanaan. Vercel cocok untuk deployment Next.js karena mendukung zero-configuration dan peningkatan skalabilitas/performa global. (authjs.dev)
+14.2 Alternatif Stack Sederhana untuk Mahasiswa
+Layer | Teknologi | Alasan
+Frontend | Laravel Blade / React sederhana | 
+Backend | Laravel | 
+Database | MySQL/MariaDB | 
+Real-time | Laravel Reverb | 
+Auth | Laravel Starter Kit | 
+Hosting | VPS / shared hosting yang mendukung WebSocket | 
+Laravel Reverb adalah WebSocket server first-party untuk Laravel dan terintegrasi dengan event broadcasting Laravel, sehingga cocok jika ingin membangun versi PHP/Laravel yang lebih familiar untuk mahasiswa. Laravel starter kit juga menyediakan scaffolding register, login, password reset, dan email verification. (Laravel)
+14.3 Rekomendasi Final
+Untuk proyek kampus yang realistis:
+Versi MVP:Laravel + MySQL + Blade/React + Laravel Reverb.
+Untuk versi lebih modern/startup kecil:
+Versi Startup:Next.js + NestJS + PostgreSQL + Prisma + Socket.IO + Redis.
+
+15. SETUP PROJECT
+15.1 Struktur Folder Monorepo
+math-battle-arena/
+├── apps/
+│   ├── web/                  # Frontend Next.js
+│   └── api/                  # Backend NestJS
+├── packages/
+│   ├── shared/               # Type, constants, validation schema
+│   └── ui/                   # Reusable UI components
+├── database/
+│   ├── schema.sql
+│   └── seed.sql
+├── docs/
+│   ├── erd.md
+│   ├── api-spec.md
+│   └── flow.md
+├── docker-compose.yml
+├── .env.example
+└── README.md
+15.2 Setup Frontend
+cd math-battle-arena
+mkdir -p apps
+cd apps
+npx create-next-app@latest web
+cd web
+npm install socket.io-client axios zod zustand
+npm install -D tailwindcss
+15.3 Setup Backend
+cd apps
+npm i -g @nestjs/cli
+nest new api
+cd api
+npm install @nestjs/websockets @nestjs/platform-socket.io socket.io
+npm install @nestjs/jwt passport passport-jwt bcrypt
+npm install prisma @prisma/client
+npm install class-validator class-transformer
+15.4 Environment Variables
+# DATABASE
+DATABASE_URL="postgresql://postgres:password@localhost:5432/math_battle_arena"
+
+# AUTH
+JWT_SECRET="super_secret_key"
+JWT_EXPIRES_IN="7d"
+
+# APP
+FRONTEND_URL="http://localhost:3000"
+BACKEND_PORT=4000
+SOCKET_CORS_ORIGIN="http://localhost:3000"
+
+# RANKING
+DEFAULT_RATING=1000
+WIN_POINT=25
+LOSE_POINT=10
+15.5 Package Penting
+Package | Fungsi
+socket.io | Real-time server
+socket.io-client | Real-time client
+prisma | ORM dan migration
+bcrypt | Hash password
+jsonwebtoken / @nestjs/jwt | Token auth
+zod / class-validator | Validasi data
+zustand | State management frontend
+axios | HTTP request
+
+16. BANGUN DATABASE
+16.1 SQL Script Awal PostgreSQL
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT
+);
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    role_id INT NOT NULL REFERENCES roles(id),
+    name VARCHAR(100) NOT NULL,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    avatar_url TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE question_categories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE questions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category_id UUID REFERENCES question_categories(id),
+    question_text TEXT NOT NULL,
+    options JSONB NOT NULL,
+    correct_answer VARCHAR(10) NOT NULL,
+    explanation TEXT,
+    difficulty VARCHAR(20) NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
+    base_score INT DEFAULT 100,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE matches (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    mode VARCHAR(30) NOT NULL CHECK (mode IN ('practice', 'duel', 'tournament', 'battle_royale')),
+    status VARCHAR(30) NOT NULL DEFAULT 'waiting',
+    total_questions INT DEFAULT 10,
+    winner_user_id UUID REFERENCES users(id),
+    started_at TIMESTAMP,
+    ended_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE battle_rooms (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    match_id UUID UNIQUE NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    room_code VARCHAR(30) UNIQUE NOT NULL,
+    max_players INT DEFAULT 2,
+    status VARCHAR(30) DEFAULT 'waiting',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE match_players (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    total_score INT DEFAULT 0,
+    correct_count INT DEFAULT 0,
+    wrong_count INT DEFAULT 0,
+    avg_answer_time NUMERIC(10,2) DEFAULT 0,
+    result VARCHAR(20),
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(match_id, user_id)
+);
+
+CREATE TABLE answers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    question_id UUID NOT NULL REFERENCES questions(id),
+    selected_answer VARCHAR(10) NOT NULL,
+    is_correct BOOLEAN NOT NULL,
+    answer_time_ms INT NOT NULL,
+    score_earned INT DEFAULT 0,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(match_id, user_id, question_id)
+);
+
+CREATE TABLE rankings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    rating_point INT DEFAULT 1000,
+    tier VARCHAR(30) DEFAULT 'Bronze',
+    current_rank INT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE leaderboard_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ranking_id UUID NOT NULL REFERENCES rankings(id) ON DELETE CASCADE,
+    match_id UUID REFERENCES matches(id) ON DELETE SET NULL,
+    old_point INT NOT NULL,
+    new_point INT NOT NULL,
+    change_point INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE achievements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT,
+    icon_url TEXT,
+    condition_type VARCHAR(50) NOT NULL,
+    condition_value INT NOT NULL,
+    reward_point INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_achievements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    achievement_id UUID NOT NULL REFERENCES achievements(id) ON DELETE CASCADE,
+    earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, achievement_id)
+);
+
+CREATE TABLE user_stats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    total_matches INT DEFAULT 0,
+    total_wins INT DEFAULT 0,
+    total_losses INT DEFAULT 0,
+    total_draws INT DEFAULT 0,
+    total_questions_answered INT DEFAULT 0,
+    total_correct_answers INT DEFAULT 0,
+    accuracy NUMERIC(5,2) DEFAULT 0,
+    win_rate NUMERIC(5,2) DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_users_role_id ON users(role_id);
+CREATE INDEX idx_questions_category ON questions(category_id);
+CREATE INDEX idx_questions_difficulty ON questions(difficulty);
+CREATE INDEX idx_matches_mode_status ON matches(mode, status);
+CREATE INDEX idx_match_players_match ON match_players(match_id);
+CREATE INDEX idx_answers_match_user ON answers(match_id, user_id);
+CREATE INDEX idx_rankings_point ON rankings(rating_point DESC);
+CREATE INDEX idx_user_stats_winrate ON user_stats(win_rate DESC);
+16.2 Seed Data Awal
+INSERT INTO roles (name, description) VALUES
+('player', 'Pemain Math Battle Arena'),
+('admin', 'Pengelola sistem'),
+('moderator', 'Pengawas room dan laporan');
+
+INSERT INTO question_categories (name, description) VALUES
+('Aritmetika', 'Operasi dasar matematika'),
+('Aljabar', 'Persamaan dan variabel'),
+('Geometri', 'Bangun datar dan bangun ruang');
+
+INSERT INTO achievements (name, description, condition_type, condition_value, reward_point) VALUES
+('First Win', 'Menang pertama kali', 'win_count', 1, 50),
+('Sharp Shooter', 'Akurasi mencapai 80%', 'accuracy', 80, 100),
+('Battle Master', 'Menang 10 kali', 'win_count', 10, 200);
+
+17. BACKEND
+17.1 Arsitektur Backend
+Client
+  ↓ HTTP / WebSocket
+Controller / Gateway
+  ↓
+Service Layer
+  ↓
+Repository / Prisma Model
+  ↓
+Database
+17.2 Struktur Backend
+apps/api/src/
+├── auth/
+│   ├── auth.controller.ts
+│   ├── auth.service.ts
+│   ├── jwt.strategy.ts
+│   └── dto/
+├── users/
+│   ├── users.controller.ts
+│   ├── users.service.ts
+│   └── dto/
+├── matches/
+│   ├── matches.controller.ts
+│   ├── matches.service.ts
+│   └── dto/
+├── questions/
+│   ├── questions.controller.ts
+│   ├── questions.service.ts
+│   └── dto/
+├── leaderboard/
+│   ├── leaderboard.controller.ts
+│   └── leaderboard.service.ts
+├── game/
+│   ├── game.gateway.ts
+│   ├── matchmaking.service.ts
+│   ├── scoring.service.ts
+│   └── room.service.ts
+├── admin/
+│   ├── admin.controller.ts
+│   └── admin.service.ts
+├── common/
+│   ├── guards/
+│   ├── middleware/
+│   └── filters/
+└── prisma/
+    └── prisma.service.ts
+NestJS mendukung konsep gateway WebSocket dengan decorator @WebSocketGateway(), dan konsep seperti guard, pipe, filter, serta interceptor tetap dapat digunakan pada WebSocket. Ini cocok untuk memisahkan API biasa dan fitur duel real-time. (NestJS Dokumentasi)
+17.3 Endpoint API
+Auth API
+Method | Endpoint | Fungsi
+POST | /auth/register | Register user
+POST | /auth/login | Login user
+POST | /auth/logout | Logout
+GET | /auth/me | Ambil user login
+POST | /auth/refresh | Refresh token
+User API
+Method | Endpoint | Fungsi
+GET | /users/profile | Lihat profil
+PATCH | /users/profile | Update profil
+GET | /users/stats | Lihat statistik
+GET | /users/matches | Riwayat match
+GET | /users/achievements | Achievement user
+Match API
+Method | Endpoint | Fungsi
+POST | /matches/practice | Mulai mode latihan
+GET | /matches/:id | Detail match
+GET | /matches/:id/result | Hasil match
+GET | /matches/history | Riwayat match user
+Question API
+Method | Endpoint | Fungsi
+GET | /questions/categories | Daftar kategori
+GET | /questions/random | Ambil soal random
+POST | /questions | Tambah soal admin
+PATCH | /questions/:id | Edit soal admin
+DELETE | /questions/:id | Hapus/nonaktifkan soal
+Leaderboard API
+Method | Endpoint | Fungsi
+GET | /leaderboard | Leaderboard global
+GET | /leaderboard/weekly | Leaderboard mingguan
+GET | /leaderboard/monthly | Leaderboard bulanan
+GET | /leaderboard/:userId/rank | Rank user tertentu
+Admin API
+Method | Endpoint | Fungsi
+GET | /admin/dashboard | Statistik admin
+GET | /admin/users | Kelola user
+PATCH | /admin/users/:id/status | Aktif/nonaktif user
+GET | /admin/matches | Data match
+GET | /admin/rooms/active | Room aktif
+POST | /admin/questions | Tambah soal
+PATCH | /admin/questions/:id | Edit soal
+DELETE | /admin/questions/:id | Hapus soal
+17.4 Socket Events
+Socket.IO menyediakan konsep room, yaitu channel yang dapat digunakan socket untuk join/leave dan mengirim event ke subset client tertentu. Ini cocok untuk room duel, battle royale, dan update scoreboard per pertandingan. (Socket.IO)
+Event | Arah | Fungsi
+join_queue | client → server | Player masuk matchmaking
+leave_queue | client → server | Player batal cari lawan
+match_found | server → client | Lawan ditemukan
+join_room | client → server | Player masuk room
+countdown_start | server → client | Countdown duel
+question_sent | server → client | Kirim soal
+submit_answer | client → server | Kirim jawaban
+answer_result | server → client | Feedback jawaban
+scoreboard_update | server → client | Update skor
+match_finished | server → client | Match selesai
+player_disconnected | server → client | Lawan disconnect
+player_reconnected | server → client | Lawan reconnect
+17.5 Logic Matchmaking
+1. Player mengirim event join_queue.
+2. Server mengecek token.
+3. Server membaca ranking point player.
+4. Player dimasukkan ke queue sesuai mode.
+5. Server mencari lawan dengan range ranking mirip.
+6. Jika ditemukan, server membuat match dan battle_room.
+7. Server memilih soal random sesuai difficulty.
+8. Server mengirim event match_found.
+17.6 Logic Scoring
+Contoh scoring:
+base_score = 100
+time_bonus = sisa_waktu_detik * 2
+streak_bonus = streak >= 3 ? 30 : 0
+difficulty_bonus:
+  easy = 0
+  medium = 30
+  hard = 60
+
+total = base_score + time_bonus + streak_bonus + difficulty_bonus
+Jika salah:
+score = 0
+Atau untuk mode kompetitif:
+score = -10
+17.7 Logic Ranking
+Contoh sederhana:
+Jika menang: rating +25
+Jika kalah: rating -10
+Jika seri: rating +5
+Tier:
+Point | Tier
+0–999 | Bronze
+1000–1499 | Silver
+1500–1999 | Gold
+2000–2499 | Platinum
+2500+ | Master
+
+18. FRONTEND
+18.1 Struktur Halaman Frontend
+apps/web/src/
+├── app/
+│   ├── page.tsx                  # Landing page
+│   ├── login/page.tsx
+│   ├── register/page.tsx
+│   ├── dashboard/page.tsx
+│   ├── arena/[roomId]/page.tsx
+│   ├── result/[matchId]/page.tsx
+│   ├── leaderboard/page.tsx
+│   ├── profile/page.tsx
+│   └── admin/
+│       ├── page.tsx
+│       ├── users/page.tsx
+│       ├── questions/page.tsx
+│       └── matches/page.tsx
+├── components/
+│   ├── layout/
+│   ├── ui/
+│   ├── game/
+│   ├── leaderboard/
+│   └── admin/
+├── lib/
+│   ├── api.ts
+│   ├── socket.ts
+│   └── auth.ts
+├── store/
+│   ├── authStore.ts
+│   ├── gameStore.ts
+│   └── leaderboardStore.ts
+└── types/
+Next.js App Router menggunakan routing berbasis folder dan mendukung layout, nested routing, loading states, serta error handling, sehingga struktur halaman seperti di atas cocok untuk aplikasi dashboard dan game arena. (Next.js)
+18.2 Reusable Component
+Component | Fungsi
+Navbar | Navigasi utama
+Sidebar | Menu dashboard/admin
+StatCard | Card statistik
+ModeCard | Card pilihan mode
+QuestionCard | Menampilkan soal
+AnswerButton | Tombol pilihan jawaban
+TimerBar | Timer duel
+ScoreBoard | Skor real-time
+LeaderboardTable | Tabel ranking
+PlayerAvatar | Avatar player
+AchievementBadge | Badge prestasi
+AdminTable | Tabel CRUD admin
+ConfirmModal | Modal konfirmasi
+18.3 State Management
+State yang dibutuhkan:
+State | Isi
+authState | token, user, role
+gameState | roomId, matchId, questions, currentQuestion, score
+socketState | connected, reconnecting
+leaderboardState | ranking list
+uiState | modal, loading, toast
+18.4 Tampilan Responsif
+Desktop
+Sidebar tetap tampil.
+Arena duel split kiri-kanan.
+Leaderboard berbentuk tabel penuh.
+Mobile
+Sidebar menjadi bottom navigation.
+Arena duel satu kolom.
+Scoreboard ringkas.
+Pilihan jawaban menjadi tombol besar 2x2 atau 1 kolom.
+
+19. INTEGRASI
+19.1 Alur Koneksi Sistem
+Frontend Next.js
+  ↓ REST API
+Backend NestJS
+  ↓ Prisma
+PostgreSQL
+
+Frontend Next.js
+  ↓ Socket.IO Client
+Socket Gateway NestJS
+  ↓ Room / Matchmaking / Scoring
+PostgreSQL
+19.2 Alur Data Saat Player Menjawab Soal
+Player klik jawaban
+↓
+Frontend mengirim submit_answer via Socket.IO
+↓
+Socket server validasi token dan room
+↓
+Server mengecek apakah waktu masih aktif
+↓
+Server mengambil jawaban benar dari database
+↓
+Server menghitung skor
+↓
+Server menyimpan jawaban ke tabel answers
+↓
+Server update match_players.total_score
+↓
+Server broadcast scoreboard_update ke room
+↓
+Frontend menampilkan feedback benar/salah
+19.3 Integrasi Auth
+Tahap | Proses
+Login | Frontend kirim email/password
+Token | Backend mengembalikan JWT/session
+API | Token dikirim melalui Authorization header
+Socket | Token dikirim saat koneksi socket
+Backend | Guard memvalidasi token
+Role | Middleware membatasi akses admin/player
+19.4 Integrasi Leaderboard
+Match selesai
+↓
+Backend update rankings
+↓
+Backend insert leaderboard_logs
+↓
+Frontend result page fetch rank terbaru
+↓
+Leaderboard page menampilkan data ranking terbaru
+19.5 Testing Integrasi
+Modul | Cara Test
+Auth | Register, login, token invalid
+Matchmaking | Dua akun cari lawan bersamaan
+Duel | Submit jawaban dari dua browser
+Scoring | Cek skor benar/salah dan bonus waktu
+Ranking | Cek point sebelum dan sesudah match
+Leaderboard | Pastikan ranking berubah
+Disconnect | Tutup salah satu browser saat duel
+Admin | CRUD soal lalu pakai soal di match
+
+20. HASIL AKHIR
+20.1 Ringkasan Arsitektur Sistem
+Math Battle Arena
+├── Frontend
+│   ├── Landing page
+│   ├── Dashboard player
+│   ├── Arena duel
+│   ├── Leaderboard
+│   └── Admin panel
+├── Backend API
+│   ├── Auth
+│   ├── User
+│   ├── Match
+│   ├── Question
+│   ├── Leaderboard
+│   └── Admin
+├── Socket Server
+│   ├── Matchmaking
+│   ├── Room
+│   ├── Timer
+│   ├── Submit answer
+│   └── Scoreboard real-time
+└── Database
+    ├── Users
+    ├── Questions
+    ├── Matches
+    ├── Answers
+    ├── Rankings
+    └── Stats
+20.2 Fitur MVP
+Fitur minimum yang realistis untuk mahasiswa:
+Prioritas | Fitur
+Wajib | Register dan login
+Wajib | Dashboard player
+Wajib | CRUD soal admin
+Wajib | Mode latihan
+Wajib | Duel 1 vs 1
+Wajib | Skor otomatis
+Wajib | Result page
+Wajib | Leaderboard
+Wajib | Profil dan statistik sederhana
+Opsional MVP | Achievement dasar
+20.3 Fitur Lanjutan
+Fitur | Penjelasan
+Battle Royale | Banyak pemain dalam satu room
+Tournament Bracket | Sistem turnamen
+Chat room | Komunikasi pemain
+Friend system | Tambah teman
+Clan/team | Komunitas pemain
+Daily quest | Tantangan harian
+Season leaderboard | Ranking per season
+Anti-cheat lanjut | Deteksi pola jawaban aneh
+AI question generator | Generate soal otomatis
+Teacher dashboard | Guru memantau siswa
+20.4 Roadmap Pengembangan
+Tahap | Fokus | Output
+Tahap 1 | Analisis dan desain | Dokumen sistem, ERD, wireframe
+Tahap 2 | Setup project | Frontend, backend, database
+Tahap 3 | Auth dan user | Register, login, profile
+Tahap 4 | Admin soal | CRUD kategori dan soal
+Tahap 5 | Mode latihan | Latihan soal dan hasil
+Tahap 6 | Duel real-time | Matchmaking, arena, scoring
+Tahap 7 | Ranking | Leaderboard dan statistik
+Tahap 8 | UI polishing | Animasi, responsive, UX
+Tahap 9 | Testing | Bug fixing dan integrasi
+Tahap 10 | Deployment | Online hosting
+20.5 Risiko Teknis dan Solusi
+Risiko | Dampak | Solusi
+Socket disconnect | Duel terganggu | Buat reconnect dan timeout
+Cheating jawaban | Ranking tidak fair | Jangan kirim jawaban benar ke frontend
+Matchmaking lambat | User menunggu lama | Pakai bot dummy / perluas range ranking
+Database lambat | Leaderboard berat | Index ranking point dan cache
+UI terlalu ramai | User bingung | Fokus pada CTA dan layout sederhana
+Timer tidak sinkron | Duel tidak adil | Timer dikendalikan server
+Admin salah input soal | Soal rusak | Validasi form dan preview soal
+Server shared hosting tidak support WebSocket | Real-time gagal | Pakai VPS/Railway/Fly.io untuk backend socket
+20.6 Rekomendasi Langkah Berikutnya
+Urutan pengerjaan paling realistis:
+Buat desain database dan migrasi.
+Bangun auth: register, login, logout.
+Buat dashboard player.
+Buat CRUD soal admin.
+Buat mode latihan tanpa socket.
+Buat duel 1 vs 1 dengan Socket.IO.
+Tambahkan scoring dan result page.
+Tambahkan ranking dan leaderboard.
+Rapikan UI/UX arena duel.
+Deploy versi MVP.
+20.7 Kesimpulan
+Math Battle Arena adalah proyek web edukasi yang kuat untuk dijadikan tugas kampus maupun prototipe startup kecil. Sistem ini realistis dibangun secara bertahap. Versi awal cukup fokus pada register, login, mode latihan, duel 1 vs 1, scoring, leaderboard, profil, statistik, dan admin soal. Setelah MVP stabil, fitur seperti battle royale, turnamen, achievement, season ranking, dan AI question generator dapat ditambahkan.
+

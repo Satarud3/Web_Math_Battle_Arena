@@ -1,0 +1,78 @@
+# ==============================================================================
+# MATH BATTLE ARENA - ROOT .GITIGNORE
+# File ini digunakan untuk memberi tahu Git berkas dan folder mana saja yang 
+# harus diabaikan (tidak di-commit ke repositori).
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Dependensi Proyek (Dependencies)
+# ------------------------------------------------------------------------------
+# Mengabaikan semua folder node_modules baik di root maupun di dalam apps/ dan packages/
+node_modules/
+**/node_modules/
+
+# ------------------------------------------------------------------------------
+# 2. Hasil Kompilasi & Build (Production Builds)
+# ------------------------------------------------------------------------------
+# Mengabaikan hasil build dari Next.js frontend
+apps/web/.next/
+apps/web/out/
+
+# Mengabaikan hasil kompilasi dari NestJS backend
+apps/api/dist/
+
+# Mengabaikan hasil kompilasi dari package shared
+packages/shared/dist/
+
+# Folder build & dist umum lainnya
+dist/
+build/
+temp/
+
+# ------------------------------------------------------------------------------
+# 3. File Konfigurasi Lingkungan Rahasia (Environment Variables & Secrets)
+# ------------------------------------------------------------------------------
+# PENTING: Mencegah password database lokal, kunci JWT, dan token rahasia bocor
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env.local
+
+# KECUALIKAN file template .env.example agar tetap bisa di-commit sebagai referensi
+!.env.example
+
+# ------------------------------------------------------------------------------
+# 4. Berkas Log & Diagnostik (Logs and Diagnostics)
+# ------------------------------------------------------------------------------
+# Mengabaikan log error atau debug dari package manager (npm, yarn, pnpm)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# ------------------------------------------------------------------------------
+# 5. File Sampah Sistem Operasi & Editor (OS & Editor Trash Files)
+# ------------------------------------------------------------------------------
+# File bawaan macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# File bawaan Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+
+# Konfigurasi editor lokal (VS Code & JetBrains/WebStorm)
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
