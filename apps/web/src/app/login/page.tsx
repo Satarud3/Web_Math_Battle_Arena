@@ -3,21 +3,47 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
+import api from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+import { AxiosError } from "axios";
 
 export default function LoginPage() {
   const router = useRouter();
+  const setUser = useAuthStore((state) => state.setUser);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    // Mock authentication success
-    setTimeout(() => {
+
+    try {
+      const response = await api.post("/auth/login", {
+        email,
+        password,
+      });
+
+      const { user } = response.data;
+      setUser(user);
+
+      // Redirect depending on user role
+      if (user.role === "ADMIN" || user.role === "MODERATOR") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
+      if (err instanceof AxiosError && err.response) {
+        setError(err.response.data.message || "Email atau password salah");
+      } else {
+        setError("Koneksi server gagal");
+      }
+    } finally {
       setLoading(false);
-      router.push("/dashboard");
-    }, 1000);
+    }
   };
 
   return (
@@ -34,6 +60,12 @@ export default function LoginPage() {
           <h2 className="text-xl font-bold mt-4 text-white">Selamat Datang Kembali</h2>
           <p className="text-sm text-text-muted mt-1">Masuk untuk melanjutkan ke arena pertarungan.</p>
         </div>
+
+        {error && (
+          <div className="p-3 mb-4 rounded-lg bg-danger/10 border border-danger/30 text-danger text-sm font-medium">
+            ⚠️ {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -68,7 +100,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full h-12 rounded-lg bg-gradient-to-r from-primary to-secondary text-white font-semibold flex items-center justify-center hover:opacity-90 hover:shadow-[0_0_15px_rgba(37,99,235,0.4)] disabled:opacity-50 transition-all cursor-pointer text-sm"
           >
-            {loading ? "Memproses..." : "Masuk ke Akun"}
+            {loading ? "Memproses Masuk..." : "Masuk ke Akun"}
           </button>
         </form>
 

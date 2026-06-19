@@ -1,5 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import cookieParser from 'cookie-parser';
+import { ValidationPipe } from '@nestjs/common';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -23,10 +25,19 @@ for (const envPath of possiblePaths) {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Register cookie parser middleware
+  app.use(cookieParser());
+
+  // Enable global validation pipe
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,       // Strips non-validated fields
+    transform: true,       // Transforms payloads to typed DTOs
+  }));
+
   // Enable CORS
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true,
+    origin: 'http://localhost:3000', // Port frontend Next.js
+    credentials: true,               // Wajib true agar cookie HttpOnly bisa lewat
   });
 
   const port = process.env.BACKEND_PORT || process.env.PORT || 4000;

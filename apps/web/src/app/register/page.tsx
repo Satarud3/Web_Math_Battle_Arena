@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
+import api from "@/lib/api";
+import { AxiosError } from "axios";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -10,16 +12,50 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setSuccess("");
     setLoading(true);
-    // Mock registration success
-    setTimeout(() => {
+
+    if (password !== confirmPassword) {
+      setError("Konfirmasi password tidak cocok");
       setLoading(false);
-      router.push("/dashboard");
-    }, 1000);
+      return;
+    }
+
+    try {
+      await api.post("/auth/register", {
+        name,
+        username,
+        email,
+        password,
+        confirmPassword,
+      });
+
+      setSuccess("Registrasi berhasil! Mengarahkan ke halaman masuk...");
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
+    } catch (err: any) {
+      if (err instanceof AxiosError && err.response) {
+        const data = err.response.data;
+        if (Array.isArray(data.message)) {
+          setError(data.message[0]);
+        } else {
+          setError(data.message || "Terjadi kesalahan saat mendaftar");
+        }
+      } else {
+        setError("Koneksi server gagal");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,6 +72,18 @@ export default function RegisterPage() {
           <h2 className="text-xl font-bold mt-4 text-white">Daftar Akun Baru</h2>
           <p className="text-sm text-text-muted mt-1">Buat akun Anda untuk mulai bertarung di arena.</p>
         </div>
+
+        {error && (
+          <div className="p-3 mb-4 rounded-lg bg-danger/10 border border-danger/30 text-danger text-sm font-medium">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="p-3 mb-4 rounded-lg bg-success/10 border border-success/30 text-success text-sm font-medium">
+            ✅ {success}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -75,11 +123,23 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Kata Sandi</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Kata Sandi (Min 6 karakter)</label>
             <input 
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••" 
+              required
+              className="w-full h-11 px-4 rounded-lg bg-background border border-primary/20 text-white placeholder-text-muted/50 focus:outline-none focus:border-primary transition-colors text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Konfirmasi Kata Sandi</label>
+            <input 
+              type="password" 
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••" 
               required
               className="w-full h-11 px-4 rounded-lg bg-background border border-primary/20 text-white placeholder-text-muted/50 focus:outline-none focus:border-primary transition-colors text-sm"
@@ -91,7 +151,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full h-12 rounded-lg bg-gradient-to-r from-primary to-secondary text-white font-semibold flex items-center justify-center hover:opacity-90 hover:shadow-[0_0_15px_rgba(37,99,235,0.4)] disabled:opacity-50 transition-all cursor-pointer text-sm mt-6"
           >
-            {loading ? "Membuat Akun..." : "Daftar Akun Baru"}
+            {loading ? "Memproses Pendaftaran..." : "Daftar Akun Baru"}
           </button>
         </form>
 

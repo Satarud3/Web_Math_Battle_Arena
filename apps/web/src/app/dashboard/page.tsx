@@ -2,14 +2,52 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import api from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user, setUser, logout } = useAuthStore();
+  const [loading, setLoading] = useState(true);
 
-  const handleLogout = () => {
-    router.push("/");
+  // Fetch current user details on mount
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const response = await api.get("/auth/me");
+        setUser(response.data.user);
+      } catch (err) {
+        // If JWT cookie validation fails, clear state & redirect via middleware
+        logout();
+        router.push("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMe();
+  }, [setUser, logout, router]);
+
+  const handleLogout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      logout();
+      router.push("/");
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary animate-pulse">
+          MEMUAT ARENA...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-between">
@@ -17,11 +55,11 @@ export default function DashboardPage() {
       <header className="border-b border-card bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <span className="text-xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+            <Link href="/" className="text-xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
               MATH BATTLE ARENA
-            </span>
+            </Link>
             <span className="hidden md:inline px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-              PLAYER PANEL
+              {user?.role === "ADMIN" ? "ADMIN PANEL" : "PLAYER PANEL"}
             </span>
           </div>
           <nav className="flex space-x-8 text-sm font-medium">
@@ -30,7 +68,7 @@ export default function DashboardPage() {
           </nav>
           <button 
             onClick={handleLogout}
-            className="text-sm font-semibold text-danger hover:underline cursor-pointer"
+            className="text-sm font-semibold text-danger hover:underline cursor-pointer bg-transparent border-none"
           >
             Keluar
           </button>
@@ -42,8 +80,8 @@ export default function DashboardPage() {
         {/* Welcome Banner */}
         <div className="p-6 sm:p-8 bg-gradient-to-r from-primary/10 via-secondary/10 to-card border border-primary/20 rounded-2xl mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Selamat Datang, Pemain!</h1>
-            <p className="text-text-muted mt-1">Siap untuk memenangkan duel hari ini? Pilih mode permainan di bawah.</p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Selamat Datang, {user?.name || "Ksatria"}!</h1>
+            <p className="text-text-muted mt-1">Username Anda: <span className="text-white font-medium">@{user?.username}</span> | Email: {user?.email}</p>
           </div>
           <div className="flex gap-4">
             <button 
@@ -157,7 +195,7 @@ export default function DashboardPage() {
                 <span className="text-2xl">🔥</span>
                 <div>
                   <div className="text-sm font-semibold text-white">Unstoppable (Lock)</div>
-                  <p className="text-xs text-text-muted font-sans">Capai kemenangan beruntun (streak) sebanyak 5 kali.</p>
+                  <p className="text-xs text-text-muted">Capai kemenangan beruntun (streak) sebanyak 5 kali.</p>
                 </div>
               </div>
             </div>
