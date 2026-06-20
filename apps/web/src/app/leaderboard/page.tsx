@@ -1,10 +1,26 @@
 "use client";
 
+import { useAuthStore } from "@/store/authStore";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import api from "@/lib/api";
 import React, { useState } from "react";
 
 export default function LeaderboardPage() {
   const [filter, setFilter] = useState("global");
+  const router = useRouter();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      logout();
+      router.push("/login");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-between">
@@ -17,15 +33,36 @@ export default function LeaderboardPage() {
           <nav className="flex space-x-8 text-sm font-medium text-text-muted">
             <Link href="/" className="hover:text-white transition-colors">Home</Link>
             <Link href="/leaderboard" className="text-primary transition-colors">Leaderboard</Link>
-            <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
+            {user && (
+              <Link 
+                href={user.role === "ADMIN" ? "/admin" : "/dashboard"} 
+                className="hover:text-white transition-colors"
+              >
+                Dashboard
+              </Link>
+            )}
           </nav>
           <div>
-            <Link 
-              href="/login" 
-              className="px-4 h-10 flex items-center justify-center text-sm font-semibold rounded-lg bg-card border border-primary/20 hover:border-primary/50 text-white transition-all"
-            >
-              Kembali Masuk
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <span className="hidden sm:inline text-xs text-slate-400">
+                  Ksatria: <strong className="text-indigo-400">@{user.username}</strong>
+                </span>
+                <button 
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-xs font-bold rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all cursor-pointer bg-transparent"
+                >
+                  Keluar
+                </button>
+              </div>
+            ) : (
+              <Link 
+                href="/login" 
+                className="px-4 h-10 flex items-center justify-center text-sm font-semibold rounded-lg bg-card border border-primary/20 hover:border-primary/50 text-white transition-all"
+              >
+                Kembali Masuk
+              </Link>
+            )}
           </div>
         </div>
       </header>
