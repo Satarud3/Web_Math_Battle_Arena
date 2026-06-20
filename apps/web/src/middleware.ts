@@ -38,5 +38,5 @@ export async function middleware(request: NextRequest) {
 
 // Specify matching routes for protected zones only
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*'],
+  matcher: ['/dashboard', '/dashboard/:path*', '/admin', '/admin/:path*'],
 };

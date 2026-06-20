@@ -8,6 +8,7 @@ import { QuestionsModule } from './questions/questions.module';
 import { MatchesModule } from './matches/matches.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { GameModule } from './game/game.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { GameModule } from './game/game.module';
     MatchesModule,
     LeaderboardModule,
     GameModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
