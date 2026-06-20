@@ -9,6 +9,7 @@ import { MatchesModule } from './matches/matches.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { GameModule } from './game/game.module';
 import { AdminModule } from './admin/admin.module';
+import { PracticeModule } from './practice/practice.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AdminModule } from './admin/admin.module';
     LeaderboardModule,
     GameModule,
     AdminModule,
+    PracticeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

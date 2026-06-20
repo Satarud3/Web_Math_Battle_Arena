@@ -9,7 +9,6 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Controller('question-categories')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(RoleName.ADMIN)
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
@@ -20,6 +19,7 @@ export class CategoriesController {
   }
 
   @Post()
+  @Roles(RoleName.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateCategoryDto) {
     return this.categoriesService.create(dto);
@@ -32,12 +32,14 @@ export class CategoriesController {
   }
 
   @Patch(':id')
+  @Roles(RoleName.ADMIN)
   @HttpCode(HttpStatus.OK)
   async update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
     return this.categoriesService.update(id, dto);
   }
 
   @Delete(':id')
+  @Roles(RoleName.ADMIN)
   @HttpCode(HttpStatus.OK)
   async remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);

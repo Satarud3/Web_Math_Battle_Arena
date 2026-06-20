@@ -110,6 +110,7 @@ model Match {
   mode           MatchMode
   status         MatchStatus   @default(WAITING)
   totalQuestions Int           @default(10) @map("total_questions")
+  questionOrder  Json?         @map("question_order")
   winnerUserId   String?       @map("winner_user_id") @db.Uuid
   winner         User?         @relation("MatchWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
   startedAt      DateTime?     @map("started_at")

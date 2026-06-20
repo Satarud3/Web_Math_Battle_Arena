@@ -215,7 +215,7 @@ export default function DashboardPage() {
                 <span>Duel 1 vs 1</span>
               </button>
               <button 
-                onClick={() => alert("Mulai latihan... (Fase 4)")}
+                onClick={() => router.push("/practice")}
                 className="flex-1 md:flex-none px-6 py-3 bg-[#1B2436] hover:bg-[#232F46] border border-slate-700 text-white text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 <Play size={18} className="text-emerald-400" />
