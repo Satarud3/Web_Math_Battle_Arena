@@ -208,7 +208,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex gap-3 w-full md:w-auto">
               <button 
-                onClick={() => alert("Mencari lawan real-time... (Fase 5)")}
+                onClick={() => router.push("/duel")}
                 className="flex-1 md:flex-none px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 <Swords size={18} />
