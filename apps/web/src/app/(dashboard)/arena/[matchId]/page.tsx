@@ -56,6 +56,7 @@ export default function ArenaPlayPage() {
     const onConnect = () => {
       console.log("[Socket] Reconnected to server inside Arena");
       setError(null);
+      socket.emit("join_arena", { matchId });
     };
 
     const handleReconnectState = (data: any) => {
@@ -70,16 +71,30 @@ export default function ArenaPlayPage() {
       setEndTime(data.endTime);
       setLoading(false);
 
+      if (data.hasAnswered) {
+        setSelectedOption(data.chosenOption);
+        setSubmitting(true);
+      } else {
+        setSelectedOption(null);
+        setSubmitting(false);
+      }
+
       // Restore scoreboard state
       const initialPlayers: Record<string, PlayerState> = {};
-      for (const [uid, score] of Object.entries(data.scores)) {
+      const scores = data.scores || {};
+      const playersInfo = data.playersInfo || {};
+      const allUids = Array.from(new Set([...Object.keys(scores), ...Object.keys(playersInfo)]));
+
+      for (const uid of allUids) {
+        const score = scores[uid] !== undefined ? scores[uid] : (playersInfo[uid]?.score || 0);
+        const pInfo = playersInfo[uid] || {};
         const username = uid === user?.id 
           ? user.username 
-          : (data.playersInfo?.[uid]?.username || "Opponent");
+          : (pInfo.username || "Opponent");
         initialPlayers[uid] = {
           username,
           score: score as number,
-          hasAnswered: false,
+          hasAnswered: pInfo.hasAnswered || false,
         };
       }
       setPlayers(initialPlayers);
@@ -119,14 +134,21 @@ export default function ArenaPlayPage() {
     const handlePlayerAnswered = (data: { userId: string }) => {
       console.log("[Socket] Player answered:", data.userId);
       setPlayers((prev) => {
-        if (!prev[data.userId]) return prev;
-        return {
-          ...prev,
-          [data.userId]: {
-            ...prev[data.userId],
+        const next = { ...prev };
+        if (!next[data.userId]) {
+          const fallbackUsername = data.userId === user?.id ? (user?.username || "You") : "Lawan";
+          next[data.userId] = {
+            username: fallbackUsername,
+            score: 0,
             hasAnswered: true,
-          },
-        };
+          };
+        } else {
+          next[data.userId] = {
+            ...next[data.userId],
+            hasAnswered: true,
+          };
+        }
+        return next;
       });
     };
 
@@ -141,10 +163,20 @@ export default function ArenaPlayPage() {
       setPlayers((prev) => {
         const next = { ...prev };
         for (const [uid, details] of Object.entries(data.players)) {
+          const resultDetails = details as any;
           if (next[uid]) {
-            const resultDetails = details as any;
             next[uid] = {
               ...next[uid],
+              score: resultDetails.totalScore,
+              hasAnswered: true,
+              chosenOption: resultDetails.chosenOption,
+              isCorrect: resultDetails.isCorrect,
+              scoreEarned: resultDetails.scoreEarned,
+            };
+          } else {
+            const fallbackUsername = uid === user?.id ? (user?.username || "You") : "Lawan";
+            next[uid] = {
+              username: fallbackUsername,
               score: resultDetails.totalScore,
               hasAnswered: true,
               chosenOption: resultDetails.chosenOption,
@@ -174,7 +206,8 @@ export default function ArenaPlayPage() {
 
     // Join/Re-verify room
     if (socket.connected) {
-      // Handled automatically by socket gateway connection reconnect check
+      console.log("[Socket] Already connected, joining arena immediately");
+      socket.emit("join_arena", { matchId });
     }
 
     return () => {
@@ -342,13 +375,16 @@ export default function ArenaPlayPage() {
                 } else if (isSelected) {
                   btnStyle = "border-indigo-500 bg-indigo-600/20 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]";
                   keyStyle = "bg-indigo-600 text-white";
+                } else if (selectedOption !== null) {
+                  btnStyle = "border-slate-900 bg-slate-900/40 text-slate-500 opacity-40";
+                  keyStyle = "bg-slate-900 text-slate-600";
                 }
 
                 return (
                   <button
                     key={key}
                     type="button"
-                    disabled={isSelected || hasFeedback || submitting}
+                    disabled={selectedOption !== null || hasFeedback || submitting}
                     onClick={() => handleSelectOption(key)}
                     className={`w-full text-left p-4 sm:p-5 rounded-2xl border text-sm sm:text-base font-semibold flex items-center justify-between gap-4 transition-all duration-200 ${btnStyle}`}
                   >
@@ -383,7 +419,7 @@ export default function ArenaPlayPage() {
             {selectedOption && !feedback && (
               <div className="text-center p-4 bg-slate-900/40 border border-slate-800 rounded-2xl flex items-center justify-center gap-3 text-slate-400 text-sm animate-pulse">
                 <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                <span>Jawabanmu dikirim. Menunggu lawan selesai menjawab...</span>
+                <span>Menunggu lawan menjawab...</span>
               </div>
             )}
 

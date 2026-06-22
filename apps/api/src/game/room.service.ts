@@ -148,7 +148,9 @@ export class RoomService {
 
     const elapsedMs = Date.now() - room.questionStartTime;
     const sisaDetik = Math.max(0, (15000 - elapsedMs) / 1000);
-    const isCorrect = chosenOption === question.correctAnswer;
+    
+    // Case-insensitive and whitespace defensive check
+    const isCorrect = chosenOption.trim().toUpperCase() === question.correctAnswer.trim().toUpperCase();
 
     // Time bonus logic: baseScore + (sisaDetik * 2) + difficultyBonus
     let difficultyBonus = 0;
@@ -193,13 +195,23 @@ export class RoomService {
       userId,
     });
 
+    console.log(`[Socket.IO Room] Match ${matchId} - Player ${userId} answer registered (${chosenOption}). isCorrect: ${isCorrect}`);
+
     // Check if both players have answered
     const allAnswered = Object.values(room.players).every(
       (p) => p.submittedAnswerThisQuestion,
     );
 
+    console.log(`[Socket.IO Room] Match ${matchId} - allAnswered is ${allAnswered}. Player states:`, 
+      Object.values(room.players).map(p => `${p.username}: ${p.submittedAnswerThisQuestion}`)
+    );
+
     if (allAnswered) {
-      if (room.timeoutRef) clearTimeout(room.timeoutRef);
+      console.log(`[Socket.IO Room] Match ${matchId} - both players answered. Transitioning to next question immediately.`);
+      if (room.timeoutRef) {
+        clearTimeout(room.timeoutRef);
+        room.timeoutRef = undefined;
+      }
       this.processQuestionEnd(matchId);
     }
   }

@@ -87,8 +87,14 @@ export class GameGateway
             const playersInfo: Record<string, any> = {};
             for (const [uid, p] of Object.entries(room.players)) {
               scores[uid] = p.totalScore;
-              playersInfo[uid] = { username: p.username };
+              playersInfo[uid] = {
+                username: p.username,
+                score: p.totalScore,
+                hasAnswered: p.submittedAnswerThisQuestion,
+              };
             }
+
+            const playerState = room.players[client.data.user.id];
 
             client.emit('reconnect_state', {
               matchId: room.matchId,
@@ -100,6 +106,8 @@ export class GameGateway
               endTime,
               scores,
               playersInfo,
+              hasAnswered: playerState ? playerState.submittedAnswerThisQuestion : false,
+              chosenOption: playerState ? playerState.chosenOption : undefined,
             });
           }
         }
@@ -130,6 +138,61 @@ export class GameGateway
             this.roomService.handlePlayerLeave(activeMatchId, user.id);
           }
         }, 5000);
+      }
+    }
+  }
+
+  @SubscribeMessage('join_arena')
+  async handleJoinArena(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { matchId: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.matchId) return;
+    const user = client.data.user;
+    const matchId = payload.matchId;
+
+    console.log(
+      `[Socket.IO] Player @${user.username} joined arena for match ${matchId} (Socket: ${client.id})`,
+    );
+
+    const room = this.roomService.getRoom(matchId);
+    if (room && room.players[user.id]) {
+      // Update socketId and join socket room
+      room.players[user.id].socketId = client.id;
+      client.join(matchId);
+
+      // Emit current game state back to player
+      const questionId = room.questionOrder[room.currentQuestionIndex];
+      const question = room.questions.get(questionId);
+
+      if (question) {
+        const endTime = room.questionStartTime + 15000;
+        const scores: Record<string, number> = {};
+        const playersInfo: Record<string, any> = {};
+        for (const [uid, p] of Object.entries(room.players)) {
+          scores[uid] = p.totalScore;
+          playersInfo[uid] = {
+            username: p.username,
+            score: p.totalScore,
+            hasAnswered: p.submittedAnswerThisQuestion,
+          };
+        }
+
+        const playerState = room.players[user.id];
+
+        client.emit('reconnect_state', {
+          matchId: room.matchId,
+          currentQuestionNumber: room.currentQuestionIndex + 1,
+          totalQuestions: room.questionOrder.length,
+          questionId: question.id,
+          questionText: question.questionText,
+          options: question.options,
+          endTime,
+          scores,
+          playersInfo,
+          hasAnswered: playerState ? playerState.submittedAnswerThisQuestion : false,
+          chosenOption: playerState ? playerState.chosenOption : undefined,
+        });
       }
     }
   }
