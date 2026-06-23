@@ -1,10 +1,12 @@
 "use client";
 
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import { ArrowLeft, Eye, EyeOff, Lock, Mail, ShieldAlert, User } from "lucide-react";
 import api from "@/lib/api";
-import { AxiosError } from "axios";
+import { getApiErrorMessage } from "@/lib/errors";
+import MathBackground from "@/components/ui/MathBackground";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -13,6 +15,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,134 +33,92 @@ export default function RegisterPage() {
     }
 
     try {
-      await api.post("/auth/register", {
-        name,
-        username,
-        email,
-        password,
-        confirmPassword,
-      });
-
-      setSuccess("Registrasi berhasil! Mengarahkan ke halaman masuk...");
-      setTimeout(() => {
-        router.push("/login");
-      }, 2000);
-    } catch (err: any) {
-      if (err instanceof AxiosError && err.response) {
-        const data = err.response.data;
-        if (Array.isArray(data.message)) {
-          setError(data.message[0]);
-        } else {
-          setError(data.message || "Terjadi kesalahan saat mendaftar");
-        }
-      } else {
-        setError("Koneksi server gagal");
-      }
+      await api.post("/auth/register", { name, username, email, password, confirmPassword });
+      setSuccess("Registrasi berhasil. Mengarahkan ke halaman masuk...");
+      setTimeout(() => router.push("/login"), 2000);
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "Koneksi server gagal"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center items-center px-4 py-12 relative">
-      {/* Glow effect */}
-      <div className="absolute w-72 h-72 bg-primary/15 blur-3xl rounded-full -top-10 -left-10 -z-10"></div>
-      <div className="absolute w-72 h-72 bg-secondary/15 blur-3xl rounded-full -bottom-10 -right-10 -z-10"></div>
+    <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-10">
+      <MathBackground />
+      <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-slate-400 transition hover:text-white">
+        <ArrowLeft size={16} />
+        Back to home
+      </Link>
 
-      <div className="max-w-md w-full bg-card border border-primary/10 rounded-2xl p-8 shadow-2xl">
-        <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+      <div className="glass-panel w-full max-w-md rounded-3xl border border-border-soft bg-bg-glass p-8 shadow-[0_24px_90px_rgba(0,0,0,0.45)]">
+        <div className="mb-8 text-center">
+          <Link href="/" className="font-arena text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple">
             MATH BATTLE ARENA
           </Link>
-          <h2 className="text-xl font-bold mt-4 text-white">Daftar Akun Baru</h2>
-          <p className="text-sm text-text-muted mt-1">Buat akun Anda untuk mulai bertarung di arena.</p>
+          <h1 className="mt-5 text-2xl font-black text-white">CREATE YOUR ARENA ID</h1>
+          <p className="mt-2 text-sm text-text-muted">Buat akun Anda untuk mulai bertarung di arena.</p>
         </div>
 
         {error && (
-          <div className="p-3 mb-4 rounded-lg bg-danger/10 border border-danger/30 text-danger text-sm font-medium">
-            ⚠️ {error}
+          <div className="mb-4 flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm font-medium text-red-200">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="p-3 mb-4 rounded-lg bg-success/10 border border-success/30 text-success text-sm font-medium">
-            ✅ {success}
+          <div className="mb-4 rounded-xl border border-success/30 bg-success/10 p-3 text-sm font-medium text-success">
+            {success}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Nama Lengkap</label>
-            <input 
-              type="text" 
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Budi Santoso" 
-              required
-              className="w-full h-11 px-4 rounded-lg bg-background border border-primary/20 text-white placeholder-text-muted/50 focus:outline-none focus:border-primary transition-colors text-sm"
-            />
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-text-muted">Nama Lengkap</label>
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Budi Santoso" required className="h-11 w-full rounded-xl border border-primary/20 bg-bg-deep/70 px-11 text-sm text-white placeholder-text-muted/50 transition-colors focus:border-neon-cyan focus:outline-none" />
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Username Unik</label>
-            <input 
-              type="text" 
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="budi_math" 
-              required
-              className="w-full h-11 px-4 rounded-lg bg-background border border-primary/20 text-white placeholder-text-muted/50 focus:outline-none focus:border-primary transition-colors text-sm"
-            />
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-text-muted">Username Unik</label>
+            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="budi_math" required className="h-11 w-full rounded-xl border border-primary/20 bg-bg-deep/70 px-4 text-sm text-white placeholder-text-muted/50 transition-colors focus:border-neon-cyan focus:outline-none" />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Alamat Email</label>
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="budi@email.com" 
-              required
-              className="w-full h-11 px-4 rounded-lg bg-background border border-primary/20 text-white placeholder-text-muted/50 focus:outline-none focus:border-primary transition-colors text-sm"
-            />
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-text-muted">Alamat Email</label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="budi@email.com" required className="h-11 w-full rounded-xl border border-primary/20 bg-bg-deep/70 px-11 text-sm text-white placeholder-text-muted/50 transition-colors focus:border-neon-cyan focus:outline-none" />
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Kata Sandi (Min 6 karakter)</label>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••" 
-              required
-              className="w-full h-11 px-4 rounded-lg bg-background border border-primary/20 text-white placeholder-text-muted/50 focus:outline-none focus:border-primary transition-colors text-sm"
-            />
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-text-muted">Kata Sandi (Min 6 karakter)</label>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required className="h-11 w-full rounded-xl border border-primary/20 bg-bg-deep/70 px-11 pr-12 text-sm text-white placeholder-text-muted/50 transition-colors focus:border-neon-cyan focus:outline-none" />
+              <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-white" aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}>
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Konfirmasi Kata Sandi</label>
-            <input 
-              type="password" 
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••" 
-              required
-              className="w-full h-11 px-4 rounded-lg bg-background border border-primary/20 text-white placeholder-text-muted/50 focus:outline-none focus:border-primary transition-colors text-sm"
-            />
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-text-muted">Konfirmasi Kata Sandi</label>
+            <input type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ulangi password" required className="h-11 w-full rounded-xl border border-primary/20 bg-bg-deep/70 px-4 text-sm text-white placeholder-text-muted/50 transition-colors focus:border-neon-cyan focus:outline-none" />
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full h-12 rounded-lg bg-gradient-to-r from-primary to-secondary text-white font-semibold flex items-center justify-center hover:opacity-90 hover:shadow-[0_0_15px_rgba(37,99,235,0.4)] disabled:opacity-50 transition-all cursor-pointer text-sm mt-6"
-          >
-            {loading ? "Memproses Pendaftaran..." : "Daftar Akun Baru"}
+          <button type="submit" disabled={loading} className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-neon-blue to-neon-purple text-sm font-black text-white transition-all hover:shadow-[0_0_28px_rgba(6,182,212,0.35)] disabled:opacity-50">
+            {loading ? "Memproses pendaftaran..." : "Buat Arena ID"}
           </button>
         </form>
 
         <div className="mt-8 text-center text-sm text-text-muted">
           Sudah punya akun?{" "}
-          <Link href="/login" className="text-primary hover:underline font-medium">
+          <Link href="/login" className="font-medium text-primary hover:underline">
             Masuk Sekarang
           </Link>
         </div>

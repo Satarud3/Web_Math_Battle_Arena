@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { 
   ShieldAlert, Plus, Eye, Edit, Trash2, RefreshCw, 
-  Search, X, CheckCircle, AlertTriangle, LayoutDashboard, FolderPlus
+  Search, X, CheckCircle, AlertTriangle, FileQuestion
 } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/errors";
 
 interface Category {
   id: string;
@@ -17,7 +17,7 @@ interface Category {
 interface Question {
   id: string;
   questionText: string;
-  options: any; // JSON: { A, B, C, D }
+  options: Record<string, string>;
   correctAnswer: string;
   explanation: string | null;
   difficulty: "EASY" | "MEDIUM" | "HARD";
@@ -33,8 +33,6 @@ interface Toast {
 }
 
 export default function AdminQuestionsPage() {
-  const router = useRouter();
-
   // Questions and categories state
   const [questions, setQuestions] = useState<Question[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -72,42 +70,42 @@ export default function AdminQuestionsPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await api.get("/question-categories");
       setCategories(response.data);
     } catch (err) {
       console.error("Gagal memuat kategori", err);
     }
-  };
+  }, []);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const params: any = {};
+      const params: { categoryId?: string; difficulty?: string; search?: string } = {};
       if (selectedCategory) params.categoryId = selectedCategory;
       if (selectedDifficulty) params.difficulty = selectedDifficulty;
       if (debouncedSearch) params.search = debouncedSearch;
 
       const response = await api.get("/questions", { params });
       setQuestions(response.data);
-    } catch (err: any) {
-      console.error("Gagal memuat soal", err);
+    } catch (error: unknown) {
+      console.error("Gagal memuat soal", error);
       setError("Gagal memuat bank soal matematika.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, selectedCategory, selectedDifficulty]);
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    void Promise.resolve().then(() => fetchCategories());
+  }, [fetchCategories]);
 
   useEffect(() => {
-    fetchQuestions();
-  }, [selectedCategory, selectedDifficulty, debouncedSearch]);
+    void Promise.resolve().then(() => fetchQuestions());
+  }, [fetchQuestions]);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -123,10 +121,9 @@ export default function AdminQuestionsPage() {
       }
       setDeleteTarget(null);
       fetchQuestions();
-    } catch (err: any) {
-      console.error("Gagal menghapus soal", err);
-      const msg = err.response?.data?.message || "Gagal menghapus soal";
-      showToast("error", msg);
+    } catch (error: unknown) {
+      console.error("Gagal menghapus soal", error);
+      showToast("error", getApiErrorMessage(error, "Gagal menghapus soal"));
     } finally {
       setDeleting(false);
     }
@@ -162,8 +159,7 @@ export default function AdminQuestionsPage() {
         
         {/* Floating Toast Notification */}
         {toast && (
-          <div className="fixed top-4 right-4 z-50 animate-bounce flex items-center gap-3 px-5 py-4 rounded-xl border shadow-2xl bg-[#0E1524] text-xs font-semibold
-            ${toast.type === 'success' ? 'border-emerald-500/40 text-emerald-400' : 'border-red-500/40 text-red-400'}"
+          <div className={`fixed top-4 right-4 z-50 animate-bounce flex items-center gap-3 px-5 py-4 rounded-xl border shadow-2xl bg-[#0E1524] text-xs font-semibold ${toast.type === "success" ? "border-emerald-500/40 text-emerald-400" : "border-red-500/40 text-red-400"}`}
           >
             {toast.type === "success" ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
             <span>{toast.message}</span>
@@ -261,7 +257,7 @@ export default function AdminQuestionsPage() {
             </div>
           ) : questions.length === 0 ? (
             <div className="p-12 text-center text-slate-500 text-xs flex flex-col items-center justify-center">
-              <span className="text-4xl mb-2">📝</span>
+              <FileQuestion className="mb-2 h-9 w-9 text-slate-500" aria-hidden="true" />
               <h4 className="font-bold text-white">Soal Kosong</h4>
               <p className="mt-1">Tidak ada soal yang cocok dengan filter atau kriteria pencarian Anda.</p>
             </div>
@@ -417,8 +413,8 @@ export default function AdminQuestionsPage() {
           <div className="fixed inset-0 z-50 bg-[#06080D]/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-[#0E131F] border border-red-900/30 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
               <div className="p-6 flex flex-col items-center text-center gap-4">
-                <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center text-xl">
-                  ⚠️
+                <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center">
+                  <AlertTriangle size={21} aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">Hapus Soal?</h3>

@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, FileText, CheckCircle, AlertTriangle, 
-  HelpCircle, ShieldAlert, FolderPlus, LayoutDashboard
+  HelpCircle
 } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/errors";
 
 interface Category {
   id: string;
@@ -109,10 +110,9 @@ export default function CreateQuestionPage() {
       setTimeout(() => {
         router.push("/admin/questions");
       }, 1500);
-    } catch (err: any) {
-      console.error("Gagal menyimpan soal", err);
-      const msg = err.response?.data?.message || "Terjadi kesalahan sistem";
-      showToast("error", Array.isArray(msg) ? msg[0] : msg);
+    } catch (error: unknown) {
+      console.error("Gagal menyimpan soal", error);
+      showToast("error", getApiErrorMessage(error, "Terjadi kesalahan sistem"));
     } finally {
       setSubmitting(false);
     }

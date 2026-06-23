@@ -1,9 +1,17 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Clock, Award, BookOpen, ChevronRight, CheckCircle, XCircle, Info, Sparkles, HelpCircle } from "lucide-react";
+import { Clock, Award, BookOpen, ChevronRight, CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/errors";
+
+interface AchievementUnlock {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
 
 interface Question {
   id: string;
@@ -19,7 +27,7 @@ interface Feedback {
   explanation: string;
   scoreEarned: number;
   isLastQuestion: boolean;
-  unlockedAchievements?: any[];
+  unlockedAchievements?: AchievementUnlock[];
 }
 
 export default function PracticePlayPage() {
@@ -38,7 +46,7 @@ export default function PracticePlayPage() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [unlockedAchievements, setUnlockedAchievements] = useState<any[]>([]);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<AchievementUnlock[]>([]);
 
   // Timer State
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -46,7 +54,7 @@ export default function PracticePlayPage() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch current question (F5 Recovery Safe)
-  const fetchCurrentQuestion = async () => {
+  const fetchCurrentQuestion = useCallback(async () => {
     setLoading(true);
     setError(null);
     setSelectedOption(null);
@@ -72,24 +80,21 @@ export default function PracticePlayPage() {
       intervalRef.current = setInterval(() => {
         setTimerSeconds((prev) => prev + 1);
       }, 1000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Gagal memuat soal aktif", err);
-      setError(
-        err.response?.data?.message ||
-        "Gagal memuat sesi latihan. Silakan kembali ke dashboard."
-      );
+      setError(getApiErrorMessage(err, "Gagal memuat sesi latihan. Silakan kembali ke dashboard."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [matchId, router]);
 
   useEffect(() => {
-    fetchCurrentQuestion();
+    void Promise.resolve().then(() => fetchCurrentQuestion());
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [matchId]);
+  }, [fetchCurrentQuestion]);
 
   const handleSubmitAnswer = async () => {
     if (!selectedOption || !question || submitting || feedback) return;
@@ -107,9 +112,9 @@ export default function PracticePlayPage() {
       });
 
       setFeedback(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Gagal mengirim jawaban", err);
-      setError("Gagal mengirim jawaban. Silakan coba klik tombol kirim lagi.");
+      setError(getApiErrorMessage(err, "Gagal mengirim jawaban. Silakan coba klik tombol kirim lagi."));
     } finally {
       setSubmitting(false);
     }
@@ -365,19 +370,12 @@ export default function PracticePlayPage() {
         <div className="fixed inset-0 bg-[#0B0F19]/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="space-y-4 max-w-sm w-full">
             {unlockedAchievements.map((ach) => {
-              let emoji = "🏆";
-              if (ach.icon === "Target") emoji = "🎯";
-              if (ach.icon === "ShieldCheck") emoji = "🛡️";
-              if (ach.icon === "Zap") emoji = "⚡";
-              if (ach.icon === "Flame") emoji = "🔥";
-              if (ach.icon === "BookOpen") emoji = "📖";
-
               return (
                 <div 
                   key={ach.id} 
                   className="bg-slate-900 border-2 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.3)] p-6 rounded-3xl text-center space-y-3 transform scale-100 transition-transform duration-300 animate-bounce"
                 >
-                  <div className="text-5xl animate-pulse">{emoji}</div>
+                  <Award className="mx-auto h-12 w-12 animate-pulse text-yellow-400" />
                   <h3 className="text-xl font-black text-yellow-400 tracking-wider">
                     ACHIEVEMENT UNLOCKED!
                   </h3>

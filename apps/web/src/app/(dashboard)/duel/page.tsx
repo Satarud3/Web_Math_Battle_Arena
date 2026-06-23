@@ -3,18 +3,21 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Swords, Users, Loader2, XCircle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Swords, Loader2, XCircle, ShieldAlert } from "lucide-react";
 import { socket } from "@/lib/socket";
-import { useAuthStore } from "@/store/authStore";
 
 type QueueStatus = "IDLE" | "JOINING" | "WAITING" | "ERROR";
 
+interface DuelOpponent {
+  id?: string;
+  username: string;
+  ratingPoint: number;
+}
+
 export default function DuelSetupPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
   const [status, setStatus] = useState<QueueStatus>("IDLE");
-  const [rating, setRating] = useState<number | null>(null);
-  const [opponent, setOpponent] = useState<any>(null);
+  const [opponent, setOpponent] = useState<DuelOpponent | null>(null);
   const [queueTime, setQueueTime] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
@@ -36,8 +39,7 @@ export default function DuelSetupPage() {
       setStatus("IDLE");
     };
 
-    const onQueueJoined = (data: { ratingPoint: number }) => {
-      setRating(data.ratingPoint);
+    const onQueueJoined = () => {
       setStatus("WAITING");
       // Start elapsed timer
       setQueueTime(0);
@@ -52,7 +54,7 @@ export default function DuelSetupPage() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
 
-    const onMatchFound = (data: { matchId: string; opponent: any }) => {
+    const onMatchFound = (data: { matchId: string; opponent: DuelOpponent }) => {
       setOpponent(data.opponent);
       if (timerRef.current) clearInterval(timerRef.current);
       // Wait briefly for transition effect
@@ -73,11 +75,6 @@ export default function DuelSetupPage() {
     socket.on("queue_left", onQueueLeft);
     socket.on("match_found", onMatchFound);
     socket.on("match_error", onMatchError);
-
-    // If socket is already connected and we were somehow in queue
-    if (socket.connected) {
-      setErrorMsg(null);
-    }
 
     return () => {
       socket.off("connect", onConnect);
@@ -179,7 +176,7 @@ export default function DuelSetupPage() {
             }`}>
               {opponent ? (
                 <>
-                  <span className="text-3xl animate-bounce">⚔️</span>
+                  <Swords className="h-8 w-8 animate-bounce text-neon-cyan" aria-hidden="true" />
                   <span className="text-xs text-slate-300 mt-2 font-bold max-w-[120px] truncate">
                     @{opponent.username}
                   </span>

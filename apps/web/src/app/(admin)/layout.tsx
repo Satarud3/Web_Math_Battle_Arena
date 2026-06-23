@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
   LayoutDashboard, Users, BookOpenCheck, History, LogOut, 
-  FolderPlus, Star
+  FolderPlus, Star, Sigma
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -41,9 +41,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Shared Admin Sidebar */}
       <aside className="w-full md:w-64 bg-[#0E131F] border-b md:border-b-0 md:border-r border-slate-800 flex flex-col shrink-0">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <span className="text-xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-            🌌 MBA ADMIN
-          </span>
+          <Sigma className="h-6 w-6 text-neon-cyan" aria-hidden="true" />
+          <span className="text-xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">MBA ADMIN</span>
           <span className="px-2 py-0.5 rounded bg-purple-500/10 text-[10px] text-purple-400 border border-purple-500/20 font-bold">
             PRO
           </span>
@@ -60,8 +59,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               return (
                 <button
                   key={item.href}
-                  onClick={() => alert(`Fitur ${item.label} sedang dalam pengembangan...`)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131A2B] transition-all text-left bg-transparent border-none cursor-pointer"
+                  disabled
+                  title="Module belum tersedia"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 transition-all text-left bg-transparent border-none cursor-not-allowed"
                 >
                   <item.icon size={18} />
                   <span>{item.label}</span>

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import Navbar from "@/components/Navbar";
+import MathBackground from "@/components/ui/MathBackground";
 
 interface MatchRecord {
   matchId: string;
@@ -85,8 +86,8 @@ export default function PublicProfilePage() {
           const historyRes = await api.get(`/users/${profileData.id}/match-history`);
           setMatchHistory(historyRes.data);
         }
-      } catch (err: any) {
-        console.error("Gagal memuat profil publik", err);
+      } catch (error: unknown) {
+        console.error("Gagal memuat profil publik", error);
         setError("Gagal memuat profil ksatria.");
       } finally {
         setLoading(false);
@@ -95,23 +96,6 @@ export default function PublicProfilePage() {
 
     fetchPublicProfileData();
   }, [username]);
-
-  const getTierColorClass = (tier: string) => {
-    switch (tier.toLowerCase()) {
-      case "bronze":
-        return "bg-amber-950/20 border-amber-500/30 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.05)]";
-      case "silver":
-        return "bg-slate-700/20 border-slate-500/30 text-slate-300 shadow-[0_0_15px_rgba(203,213,225,0.05)]";
-      case "gold":
-        return "bg-yellow-500/10 border-yellow-500/30 text-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.15)]";
-      case "platinum":
-        return "bg-cyan-500/10 border-cyan-500/30 text-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.2)]";
-      case "master":
-        return "bg-purple-500/10 border-purple-500/30 text-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.3)] ring-1 ring-purple-500/20";
-      default:
-        return "bg-slate-800 border-slate-700 text-slate-400";
-    }
-  };
 
   const getTierGlowClass = (tier: string) => {
     switch (tier.toLowerCase()) {
@@ -134,7 +118,8 @@ export default function PublicProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white flex flex-col font-sans">
+    <div className="relative min-h-screen bg-bg-main text-white flex flex-col font-sans">
+      <MathBackground />
       <Navbar />
       <main className="flex-grow max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
@@ -166,11 +151,9 @@ export default function PublicProfilePage() {
 
               {/* Avatar Icon */}
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800 border-2 border-indigo-500/30 flex items-center justify-center font-black text-slate-300 text-3xl uppercase overflow-hidden shrink-0">
-                {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt={profile.username} className="w-full h-full object-cover" />
-                ) : (
-                  <UserIcon className="w-10 h-10 text-slate-400" />
-                )}
+                {profile.name || profile.username ? (
+                  <span>{(profile.name || profile.username).slice(0, 1)}</span>
+                ) : <UserIcon className="w-10 h-10 text-slate-400" />}
               </div>
 
               <div className="text-center md:text-left min-w-0 flex-grow">

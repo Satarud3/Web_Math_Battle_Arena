@@ -1,15 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --bg-main: #0B1020;
-  --bg-card: #151C33;
-  --neon-blue: #00F0FF;
-  --neon-purple: #B026FF;
-  --neon-gold: #FFB800;
-  --neon-red: #FF2A2A;
-  --neon-green: #00FF66;
+  --bg-main: #050816;
+  --bg-deep: #030712;
+  --bg-card: #0f172a;
+  --bg-glass: rgba(255, 255, 255, 0.05);
+  --border-soft: rgba(255, 255, 255, 0.12);
+  --neon-blue: #3b82f6;
+  --neon-cyan: #06b6d4;
+  --neon-purple: #8b5cf6;
+  --neon-pink: #ec4899;
+  --neon-gold: #fbbf24;
+  --neon-red: #ef4444;
+  --neon-green: #22c55e;
   --text-primary: #FFFFFF;
-  --text-secondary: #94A3B8;
+  --text-secondary: #94a3b8;
 
   /* Backward compatibility for existing components */
   --background: var(--bg-main);
@@ -27,6 +32,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
+  --color-bg-deep: var(--bg-deep);
+  --color-bg-glass: var(--bg-glass);
+  --color-border-soft: var(--border-soft);
   --color-primary: var(--primary);
   --color-secondary: var(--secondary);
   --color-accent: var(--accent);
@@ -37,19 +45,102 @@
   --color-bg-main: var(--bg-main);
   --color-bg-card: var(--bg-card);
   --color-neon-blue: var(--neon-blue);
+  --color-neon-cyan: var(--neon-cyan);
   --color-neon-purple: var(--neon-purple);
+  --color-neon-pink: var(--neon-pink);
   --color-neon-gold: var(--neon-gold);
   --color-neon-red: var(--neon-red);
   --color-neon-green: var(--neon-green);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   
-  --font-sans: var(--font-geist-sans), Inter, sans-serif;
+  --font-sans: var(--font-geist-sans), Inter, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  outline-offset: 3px;
+}
+
+::selection {
+  background: rgba(6, 182, 212, 0.35);
+  color: #ffffff;
+}
+
+.font-arena {
+  font-family: var(--font-geist-mono), var(--font-geist-sans), monospace;
+  letter-spacing: 0.08em;
+}
+
+.glass-panel {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.math-grid {
+  background-image:
+    linear-gradient(rgba(6, 182, 212, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6, 182, 212, 0.18) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(circle at center, black, transparent 78%);
+}
+
+.floating-equation {
+  animation: float-equation 8s ease-in-out infinite;
+}
+
+.card-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shimmer::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(110deg, transparent 0%, rgba(6, 182, 212, 0.22) 45%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.8s ease;
+  pointer-events: none;
+}
+
+.card-shimmer:hover::before {
+  transform: translateX(120%);
+}
+
+@keyframes float-equation {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.38;
+  }
+  50% {
+    transform: translate3d(0, -14px, 0);
+    opacity: 0.72;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }

@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trophy, Medal, User, Award, ShieldAlert, Loader2, Search, ArrowLeft } from "lucide-react";
+import { Trophy, Medal, ShieldAlert, Loader2, Search } from "lucide-react";
 import api from "@/lib/api";
-import { useAuthStore } from "@/store/authStore";
 import Navbar from "@/components/Navbar";
+import MathBackground from "@/components/ui/MathBackground";
 
 interface LeaderboardEntry {
   id: string;
@@ -20,7 +20,6 @@ interface LeaderboardEntry {
 }
 
 export default function LeaderboardPage() {
-  const { user } = useAuthStore();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +30,8 @@ export default function LeaderboardPage() {
       try {
         const res = await api.get("/leaderboard/global");
         setEntries(res.data);
-      } catch (err: any) {
-        console.error("Gagal memuat papan peringkat", err);
+      } catch (error: unknown) {
+        console.error("Gagal memuat papan peringkat", error);
         setError("Gagal memuat data papan peringkat global.");
       } finally {
         setLoading(false);
@@ -91,7 +90,8 @@ export default function LeaderboardPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-bg-main text-white flex flex-col font-sans">
+    <div className="relative min-h-[100dvh] bg-bg-main text-white flex flex-col font-sans">
+      <MathBackground />
       <Navbar />
       <main className="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 pb-24 md:pb-8">
 
@@ -127,11 +127,7 @@ export default function LeaderboardPage() {
                     <Medal className="w-6 h-6 text-slate-300" />
                   </div>
                   <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-800 border-2 border-slate-600 flex items-center justify-center font-bold text-slate-400 text-lg uppercase shadow-inner mt-4 overflow-hidden">
-                    {podium[0].avatarUrl ? (
-                      <img src={podium[0].avatarUrl} alt={podium[0].username} className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-6 h-6 sm:w-8 sm:h-8" />
-                    )}
+                    <span>{podium[0].name.slice(0, 1)}</span>
                   </div>
                   <Link
                     href={podium[0].isCurrentUser ? "/profile" : `/profile/${podium[0].username}`}
@@ -163,11 +159,7 @@ export default function LeaderboardPage() {
                     <Medal className="w-8 h-8 text-yellow-400 animate-pulse" />
                   </div>
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-yellow-950/20 border-2 border-yellow-500/30 flex items-center justify-center font-bold text-yellow-400 text-xl uppercase shadow-inner mt-6 overflow-hidden">
-                    {podium[1].avatarUrl ? (
-                      <img src={podium[1].avatarUrl} alt={podium[1].username} className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-8 h-8 sm:w-10 sm:h-10" />
-                    )}
+                    <span>{podium[1].name.slice(0, 1)}</span>
                   </div>
                   <Link
                     href={podium[1].isCurrentUser ? "/profile" : `/profile/${podium[1].username}`}
@@ -199,11 +191,7 @@ export default function LeaderboardPage() {
                     <Medal className="w-6 h-6 text-amber-500" />
                   </div>
                   <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-800 border-2 border-slate-600 flex items-center justify-center font-bold text-slate-400 text-lg uppercase shadow-inner mt-4 overflow-hidden">
-                    {podium[2].avatarUrl ? (
-                      <img src={podium[2].avatarUrl} alt={podium[2].username} className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-6 h-6 sm:w-8 sm:h-8" />
-                    )}
+                    <span>{podium[2].name.slice(0, 1)}</span>
                   </div>
                   <Link
                     href={podium[2].isCurrentUser ? "/profile" : `/profile/${podium[2].username}`}
@@ -257,7 +245,7 @@ export default function LeaderboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
-                {filteredEntries.map((entry, index) => {
+                {filteredEntries.map((entry) => {
                   const isPodium = entry.rank <= 3;
                   const rowHighlightClass = entry.isCurrentUser
                     ? "bg-neon-blue/10 border-y border-neon-blue/30 shadow-[inset_0_0_15px_rgba(0,240,255,0.1)] relative"
@@ -282,12 +270,8 @@ export default function LeaderboardPage() {
                       {/* User Column */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-300 text-xs shrink-0 overflow-hidden">
-                            {entry.avatarUrl ? (
-                              <img src={entry.avatarUrl} alt={entry.username} className="w-full h-full object-cover" />
-                            ) : (
-                              <User className="w-4 h-4 text-slate-400" />
-                            )}
+                          <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-300 text-xs shrink-0">
+                            {entry.name.slice(0, 1)}
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">

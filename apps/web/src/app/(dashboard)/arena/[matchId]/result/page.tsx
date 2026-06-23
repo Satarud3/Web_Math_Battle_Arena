@@ -3,9 +3,10 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { Home, Swords, Trophy, Clock, Target, Award, Sparkles, AlertCircle, Activity } from "lucide-react";
+import { Home, Swords, Clock, Target, Award, AlertCircle, Activity } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import { getApiErrorMessage } from "@/lib/errors";
 
 interface PlayerDuelResult {
   userId: string;
@@ -42,12 +43,9 @@ export default function DuelResultPage() {
       try {
         const response = await api.get(`/game/duel/${matchId}/result`);
         setResult(response.data);
-      } catch (err: any) {
-        console.error("Gagal mengambil hasil duel:", err);
-        setError(
-          err.response?.data?.message ||
-          "Gagal memuat hasil duel. Pastikan pertandingan telah selesai."
-        );
+      } catch (error: unknown) {
+        console.error("Gagal mengambil hasil duel:", error);
+        setError(getApiErrorMessage(error, "Gagal memuat hasil duel. Pastikan pertandingan telah selesai."));
       } finally {
         setLoading(false);
       }
@@ -89,7 +87,6 @@ export default function DuelResultPage() {
 
   const isWin = me.result === "WIN";
   const isLose = me.result === "LOSE";
-  const isDraw = me.result === "DRAW";
 
   const getOutcomeDetails = () => {
     if (isWin) {
@@ -99,7 +96,7 @@ export default function DuelResultPage() {
         colorClass: "from-emerald-500/20 to-teal-500/10 border-emerald-500/40 text-emerald-400 shadow-emerald-500/10",
         ratingText: `+${me.mmrChange} RP`,
         ratingColor: "text-emerald-400",
-        badge: "🏆 VICTORY",
+        badge: "VICTORY",
       };
     }
     if (isLose) {
@@ -109,7 +106,7 @@ export default function DuelResultPage() {
         colorClass: "from-rose-500/20 to-slate-900/10 border-rose-500/30 text-rose-400 shadow-rose-500/10",
         ratingText: `${me.mmrChange} RP`,
         ratingColor: "text-rose-400",
-        badge: "💀 DEFEAT",
+        badge: "DEFEAT",
       };
     }
     return {
@@ -118,7 +115,7 @@ export default function DuelResultPage() {
       colorClass: "from-slate-800/80 to-slate-950/20 border-slate-700/60 text-slate-400 shadow-slate-500/5",
       ratingText: "+0 RP",
       ratingColor: "text-slate-400",
-      badge: "⚔️ DRAW",
+      badge: "DRAW",
     };
   };
 

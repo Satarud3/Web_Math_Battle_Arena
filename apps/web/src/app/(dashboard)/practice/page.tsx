@@ -5,11 +5,19 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Brain, Sparkles, Play, Target, CheckCircle2 } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/errors";
+import MathBackground from "@/components/ui/MathBackground";
 
 interface Category {
   id: string;
   name: string;
   description: string | null;
+}
+
+interface StartPracticePayload {
+  totalQuestions: number;
+  categoryId?: string;
+  difficulty?: string;
 }
 
 export default function PracticeSetupPage() {
@@ -30,9 +38,9 @@ export default function PracticeSetupPage() {
       try {
         const response = await api.get("/question-categories");
         setCategories(response.data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Gagal mengambil kategori", err);
-        setError("Gagal memuat kategori soal. Silakan coba beberapa saat lagi.");
+        setError(getApiErrorMessage(err, "Gagal memuat kategori soal. Silakan coba beberapa saat lagi."));
       } finally {
         setLoading(false);
       }
@@ -46,7 +54,7 @@ export default function PracticeSetupPage() {
     setError(null);
 
     try {
-      const payload: any = {
+      const payload: StartPracticePayload = {
         totalQuestions,
       };
 
@@ -63,18 +71,16 @@ export default function PracticeSetupPage() {
       
       // Redirect to play session
       router.push(`/practice/${matchId}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Gagal memulai latihan", err);
-      setError(
-        err.response?.data?.message || 
-        "Gagal memulai sesi latihan. Pastikan bank soal memiliki cukup soal untuk pilihan Anda."
-      );
+      setError(getApiErrorMessage(err, "Gagal memulai sesi latihan. Pastikan bank soal memiliki cukup soal untuk pilihan Anda."));
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white py-12 px-4 sm:px-6 lg:px-8">
+    <div className="relative min-h-screen bg-[#0B0F19] text-white py-12 px-4 sm:px-6 lg:px-8">
+      <MathBackground />
       <div className="max-w-3xl mx-auto">
         {/* Back Link */}
         <Link 
@@ -92,7 +98,7 @@ export default function PracticeSetupPage() {
           </div>
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent sm:text-4xl">
-              Mode Latihan Mandiri
+              Training Configuration Chamber
             </h1>
             <p className="text-slate-400 mt-1 text-sm sm:text-base">
               Asah kemampuan matematikamu tanpa batas waktu dan tingkatkan akurasimu.
@@ -102,7 +108,7 @@ export default function PracticeSetupPage() {
 
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-200 flex items-start gap-3">
-            <span className="text-lg">⚠️</span>
+            <span className="text-lg font-black">!</span>
             <div className="text-sm">{error}</div>
           </div>
         )}
@@ -110,6 +116,12 @@ export default function PracticeSetupPage() {
         {/* Setup Card */}
         <div className="bg-[#0E1524]/80 backdrop-blur-md border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -z-10" />
+          <div className="mb-8 rounded-2xl border border-neon-cyan/20 bg-neon-cyan/10 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-neon-cyan">AI Recommendation</p>
+            <p className="mt-2 text-sm text-slate-300">
+              {totalQuestions} soal | sekitar {Math.max(2, Math.ceil(totalQuestions * 0.35))} menit | cocok untuk {selectedDifficulty === "HARD" ? "uji fokus intens" : selectedDifficulty === "MEDIUM" ? "latihan terukur" : "pemanasan logika"}.
+            </p>
+          </div>
           
           <form onSubmit={handleStartPractice} className="space-y-8">
             {/* Category Select */}
@@ -218,17 +230,17 @@ export default function PracticeSetupPage() {
         {/* Benefits Section */}
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-[#0E1524]/40 border border-slate-800/60 rounded-2xl p-6 text-center">
-            <div className="text-xl mb-2">⚡</div>
+            <Sparkles className="mx-auto mb-2 h-5 w-5 text-neon-cyan" />
             <h3 className="font-semibold text-slate-200 mb-1 text-sm">Feedback Instan</h3>
             <p className="text-slate-500 text-xs">Dapatkan jawaban yang benar beserta penjelasannya langsung setelah menjawab.</p>
           </div>
           <div className="bg-[#0E1524]/40 border border-slate-800/60 rounded-2xl p-6 text-center">
-            <div className="text-xl mb-2">🎯</div>
+            <Target className="mx-auto mb-2 h-5 w-5 text-neon-gold" />
             <h3 className="font-semibold text-slate-200 mb-1 text-sm">Statistik Akumulatif</h3>
             <p className="text-slate-500 text-xs">Jawabanmu akan terekam untuk melatih akurasi profilmu secara keseluruhan.</p>
           </div>
           <div className="bg-[#0E1524]/40 border border-slate-800/60 rounded-2xl p-6 text-center">
-            <div className="text-xl mb-2">🛡️</div>
+            <CheckCircle2 className="mx-auto mb-2 h-5 w-5 text-neon-green" />
             <h3 className="font-semibold text-slate-200 mb-1 text-sm">Bebas Resiko</h3>
             <p className="text-slate-500 text-xs">Mode latihan tidak mempengaruhi Ranking Point (MMR) milikmu.</p>
           </div>

@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { Home, Play, CheckCircle2, XCircle, Clock, Target, Award, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { Home, Play, CheckCircle2, XCircle, Clock, Target, Award, BookOpen, ChevronDown, ChevronUp, Trophy, ThumbsUp, Dumbbell } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/errors";
 
 interface QuestionResult {
   id: string;
@@ -46,12 +47,9 @@ export default function PracticeResultPage() {
       try {
         const response = await api.get(`/practice/${matchId}/result`);
         setResult(response.data);
-      } catch (err: any) {
-        console.error("Gagal mengambil hasil latihan", err);
-        setError(
-          err.response?.data?.message ||
-          "Gagal memuat hasil latihan. Pastikan Anda menyelesaikan latihan terlebih dahulu."
-        );
+      } catch (error: unknown) {
+        console.error("Gagal mengambil hasil latihan", error);
+        setError(getApiErrorMessage(error, "Gagal memuat hasil latihan. Pastikan Anda menyelesaikan latihan terlebih dahulu."));
       } finally {
         setLoading(false);
       }
@@ -96,12 +94,13 @@ export default function PracticeResultPage() {
   }
 
   const performanceFeedback = () => {
-    if (result.accuracy >= 80) return { title: "Luar Biasa!", desc: "Kamu sangat menguasai materi ini! Pertahankan prestasimu.", emoji: "🏆" };
-    if (result.accuracy >= 60) return { title: "Kerja Bagus!", desc: "Akurasi yang solid. Sedikit latihan lagi untuk meraih nilai sempurna.", emoji: "👍" };
-    return { title: "Tetap Semangat!", desc: "Belajar dari kesalahan di pembahasan di bawah dan coba lagi.", emoji: "💪" };
+    if (result.accuracy >= 80) return { title: "Luar Biasa!", desc: "Kamu sangat menguasai materi ini! Pertahankan prestasimu.", icon: Trophy };
+    if (result.accuracy >= 60) return { title: "Kerja Bagus!", desc: "Akurasi yang solid. Sedikit latihan lagi untuk meraih nilai sempurna.", icon: ThumbsUp };
+    return { title: "Tetap Semangat!", desc: "Belajar dari kesalahan di pembahasan di bawah dan coba lagi.", icon: Dumbbell };
   };
 
   const feedbackInfo = performanceFeedback();
+  const FeedbackIcon = feedbackInfo.icon;
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white py-12 px-4 sm:px-6 lg:px-8">
@@ -111,7 +110,7 @@ export default function PracticeResultPage() {
         <div className="bg-gradient-to-br from-[#1E1B4B]/80 to-[#0F172A]/80 border border-indigo-900/40 rounded-3xl p-6 sm:p-10 shadow-2xl mb-8 text-center relative overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -z-10" />
           
-          <div className="text-5xl sm:text-6xl mb-4">{feedbackInfo.emoji}</div>
+          <FeedbackIcon className="mx-auto mb-4 h-14 w-14 text-neon-cyan" aria-hidden="true" />
           <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400">
             {feedbackInfo.title}
           </h1>
@@ -201,9 +200,9 @@ export default function PracticeResultPage() {
                         </h4>
                         <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
                           <span className="uppercase font-semibold text-indigo-400">{q.difficulty}</span>
-                          <span>•</span>
+                          <span>/</span>
                           <span>Waktu Jawab: {formatDuration(q.answerTimeMs)}</span>
-                          <span>•</span>
+                          <span>/</span>
                           <span>Skor: +{q.scoreEarned} PTS</span>
                         </div>
                       </div>

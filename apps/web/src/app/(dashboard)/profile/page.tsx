@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
   User as UserIcon, Trophy, Activity, Award, Clock, 
-  CheckCircle, XCircle, ShieldAlert, Loader2, Play, Swords, ArrowLeft
+  ShieldAlert, Loader2, Play, Swords
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -72,8 +72,8 @@ export default function PersonalProfilePage() {
         setStats(statsRes.data.userStats);
         setRanking(statsRes.data.ranking);
         setMatchHistory(historyRes.data);
-      } catch (err: any) {
-        console.error("Gagal memuat profil", err);
+      } catch (error: unknown) {
+        console.error("Gagal memuat profil", error);
         setError("Gagal memuat statistik dan riwayat tanding.");
       } finally {
         setLoading(false);
@@ -82,23 +82,6 @@ export default function PersonalProfilePage() {
 
     fetchProfileData();
   }, [user]);
-
-  const getTierColorClass = (tier: string) => {
-    switch (tier.toLowerCase()) {
-      case "bronze":
-        return "bg-amber-950/20 border-amber-500/30 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.05)]";
-      case "silver":
-        return "bg-slate-700/20 border-slate-500/30 text-slate-300 shadow-[0_0_15px_rgba(203,213,225,0.05)]";
-      case "gold":
-        return "bg-yellow-500/10 border-yellow-500/30 text-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.15)]";
-      case "platinum":
-        return "bg-cyan-500/10 border-cyan-500/30 text-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.2)]";
-      case "master":
-        return "bg-purple-500/10 border-purple-500/30 text-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.3)] ring-1 ring-purple-500/20";
-      default:
-        return "bg-slate-800 border-slate-700 text-slate-400";
-    }
-  };
 
   const getTierGlowClass = (tier: string) => {
     switch (tier.toLowerCase()) {
@@ -131,11 +114,9 @@ export default function PersonalProfilePage() {
 
           {/* Avatar Icon */}
           <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800 border-2 border-indigo-500/30 flex items-center justify-center font-black text-slate-300 text-3xl uppercase overflow-hidden shrink-0">
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt={user.username} className="w-full h-full object-cover" />
-            ) : (
-              <UserIcon className="w-10 h-10 text-slate-400" />
-            )}
+            {user?.name || user?.username ? (
+              <span>{(user.name || user.username || "?").slice(0, 1)}</span>
+            ) : <UserIcon className="w-10 h-10 text-slate-400" />}
           </div>
 
           <div className="text-center md:text-left min-w-0 flex-grow">

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Clock, Swords, Trophy, Activity, Award, CheckCircle, XCircle, ArrowRight, HelpCircle } from "lucide-react";
+import { Swords, Award, CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { socket } from "@/lib/socket";
 import { useAuthStore } from "@/store/authStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +22,41 @@ interface PlayerState {
   scoreEarned?: number;
 }
 
+interface AchievementUnlock {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+interface ArenaStatePayload {
+  questionId: string;
+  questionText: string;
+  options: Record<string, string>;
+  currentQuestionNumber: number;
+  totalQuestions: number;
+  endTime: number;
+  scores?: Record<string, number>;
+  playersInfo?: Record<string, { username?: string; score?: number; hasAnswered?: boolean }>;
+  hasAnswered?: boolean;
+  chosenOption?: string;
+}
+
+interface AnswerResultPayload {
+  correctAnswer: string;
+  explanation?: string;
+  players: Record<string, {
+    totalScore: number;
+    chosenOption?: string;
+    isCorrect?: boolean;
+    scoreEarned?: number;
+  }>;
+}
+
+interface MatchFinishedPayload {
+  unlockedAchievements?: Record<string, AchievementUnlock[]>;
+}
+
 export default function ArenaPlayPage() {
   const router = useRouter();
   const params = useParams();
@@ -30,7 +65,6 @@ export default function ArenaPlayPage() {
 
   // Session & Question state
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
   const [currentNum, setCurrentNum] = useState(1);
   const [totalQuestions, setTotalQuestions] = useState(10);
@@ -38,9 +72,9 @@ export default function ArenaPlayPage() {
   // Game states
   const [players, setPlayers] = useState<Record<string, PlayerState>>({});
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<any>(null);
+  const [feedback, setFeedback] = useState<{ correctAnswer: string; explanation?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [unlockedAchievements, setUnlockedAchievements] = useState<any[]>([]);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<AchievementUnlock[]>([]);
 
   // Server controlled timing
   const [endTime, setEndTime] = useState<number | null>(null);
@@ -57,11 +91,10 @@ export default function ArenaPlayPage() {
 
     const onConnect = () => {
       console.log("[Socket] Reconnected to server inside Arena");
-      setError(null);
       socket.emit("join_arena", { matchId });
     };
 
-    const handleReconnectState = (data: any) => {
+    const handleReconnectState = (data: ArenaStatePayload) => {
       console.log("[Socket] Reconnect state received:", data);
       setQuestion({
         id: data.questionId,
@@ -74,7 +107,7 @@ export default function ArenaPlayPage() {
       setLoading(false);
 
       if (data.hasAnswered) {
-        setSelectedOption(data.chosenOption);
+        setSelectedOption(data.chosenOption ?? null);
         setSubmitting(true);
       } else {
         setSelectedOption(null);
@@ -102,7 +135,7 @@ export default function ArenaPlayPage() {
       setPlayers(initialPlayers);
     };
 
-    const handleQuestionSent = (data: any) => {
+    const handleQuestionSent = (data: ArenaStatePayload) => {
       console.log("[Socket] New question received:", data);
       setQuestion({
         id: data.questionId,
@@ -154,7 +187,7 @@ export default function ArenaPlayPage() {
       });
     };
 
-    const handleAnswerResult = (data: any) => {
+    const handleAnswerResult = (data: AnswerResultPayload) => {
       console.log("[Socket] Question answer result:", data);
       setFeedback({
         correctAnswer: data.correctAnswer,
@@ -164,8 +197,7 @@ export default function ArenaPlayPage() {
       // Update both players in state
       setPlayers((prev) => {
         const next = { ...prev };
-        for (const [uid, details] of Object.entries(data.players)) {
-          const resultDetails = details as any;
+        for (const [uid, resultDetails] of Object.entries(data.players)) {
           if (next[uid]) {
             next[uid] = {
               ...next[uid],
@@ -191,7 +223,7 @@ export default function ArenaPlayPage() {
       });
     };
 
-    const handleMatchFinished = (data: any) => {
+    const handleMatchFinished = (data: MatchFinishedPayload) => {
       console.log("[Socket] Match finished:", data);
       
       const myAchievements = user?.id && data.unlockedAchievements ? data.unlockedAchievements[user.id] || [] : [];
@@ -302,7 +334,7 @@ export default function ArenaPlayPage() {
               </div>
               <div className="text-xl sm:text-2xl font-black text-blue-400">{me.score} <span className="text-xs font-semibold text-slate-500">PTS</span></div>
               <span className={`text-[10px] uppercase font-bold tracking-wider ${me.hasAnswered ? "text-emerald-400" : "text-amber-500 animate-pulse"}`}>
-                {me.hasAnswered ? "✓ Menjawab" : "Berpikir..."}
+                {me.hasAnswered ? "Answered" : "Berpikir..."}
               </span>
             </div>
           </div>
@@ -340,7 +372,7 @@ export default function ArenaPlayPage() {
               </div>
               <div className="text-xl sm:text-2xl font-black text-purple-400">{opponent.score} <span className="text-xs font-semibold text-slate-500">PTS</span></div>
               <span className={`text-[10px] uppercase font-bold tracking-wider ${opponent.hasAnswered ? "text-emerald-400" : "text-amber-500 animate-pulse"}`}>
-                {opponent.hasAnswered ? "✓ Menjawab" : "Berpikir..."}
+                {opponent.hasAnswered ? "Answered" : "Berpikir..."}
               </span>
             </div>
           </div>
@@ -504,13 +536,6 @@ export default function ArenaPlayPage() {
           >
             <div className="space-y-4 max-w-sm w-full">
               {unlockedAchievements.map((ach, index) => {
-                let emoji = "🏆";
-                if (ach.icon === "Target") emoji = "🎯";
-                if (ach.icon === "ShieldCheck") emoji = "🛡️";
-                if (ach.icon === "Zap") emoji = "⚡";
-                if (ach.icon === "Flame") emoji = "🔥";
-                if (ach.icon === "BookOpen") emoji = "📖";
-
                 return (
                   <motion.div 
                     initial={{ scale: 0.5, y: 50, opacity: 0 }}
@@ -523,9 +548,9 @@ export default function ArenaPlayPage() {
                     <motion.div 
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ repeat: Infinity, duration: 1.5 }}
-                      className="text-5xl"
+                      className="flex justify-center"
                     >
-                      {emoji}
+                      <Award className="h-12 w-12 text-neon-gold" />
                     </motion.div>
                     <h3 className="text-xl font-black text-neon-gold tracking-wider">
                       ACHIEVEMENT UNLOCKED!

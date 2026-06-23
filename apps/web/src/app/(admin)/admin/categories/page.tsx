@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
+import React, { useCallback, useEffect, useState } from "react";
 import { 
   FolderPlus, Edit, Trash2, ShieldAlert, Plus, 
-  X, CheckCircle, AlertTriangle, RefreshCw, LayoutDashboard 
+  X, CheckCircle, AlertTriangle, RefreshCw
 } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/errors";
 
 interface Category {
   id: string;
@@ -48,23 +48,23 @@ export default function AdminCategoriesPage() {
     }, 4000);
   };
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await api.get("/question-categories");
       setCategories(response.data);
-    } catch (err: any) {
-      console.error("Gagal memuat kategori", err);
+    } catch (error: unknown) {
+      console.error("Gagal memuat kategori", error);
       setError("Gagal memuat daftar kategori soal.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    void Promise.resolve().then(() => fetchCategories());
+  }, [fetchCategories]);
 
   const openAddModal = () => {
     setEditId(null);
@@ -106,10 +106,9 @@ export default function AdminCategoriesPage() {
       }
       setModalOpen(false);
       fetchCategories();
-    } catch (err: any) {
-      console.error("Gagal menyimpan kategori", err);
-      const msg = err.response?.data?.message || "Terjadi kesalahan sistem";
-      showToast("error", Array.isArray(msg) ? msg[0] : msg);
+    } catch (error: unknown) {
+      console.error("Gagal menyimpan kategori", error);
+      showToast("error", getApiErrorMessage(error, "Terjadi kesalahan sistem"));
     } finally {
       setSubmitting(false);
     }
@@ -134,10 +133,9 @@ export default function AdminCategoriesPage() {
       showToast("success", `Kategori "${deleteTarget.name}" berhasil dihapus.`);
       setDeleteTarget(null);
       fetchCategories();
-    } catch (err: any) {
-      console.error("Gagal menghapus kategori", err);
-      const msg = err.response?.data?.message || "Terjadi kesalahan";
-      showToast("error", Array.isArray(msg) ? msg[0] : msg);
+    } catch (error: unknown) {
+      console.error("Gagal menghapus kategori", error);
+      showToast("error", getApiErrorMessage(error, "Terjadi kesalahan"));
     } finally {
       setDeleting(false);
     }
@@ -148,8 +146,7 @@ export default function AdminCategoriesPage() {
         
         {/* Floating Toast Notification */}
         {toast && (
-          <div className="fixed top-4 right-4 z-50 animate-bounce flex items-center gap-3 px-5 py-4 rounded-xl border shadow-2xl bg-[#0E1524] text-xs font-semibold
-            ${toast.type === 'success' ? 'border-emerald-500/40 text-emerald-400' : 'border-red-500/40 text-red-400'}"
+          <div className={`fixed top-4 right-4 z-50 animate-bounce flex items-center gap-3 px-5 py-4 rounded-xl border shadow-2xl bg-[#0E1524] text-xs font-semibold ${toast.type === "success" ? "border-emerald-500/40 text-emerald-400" : "border-red-500/40 text-red-400"}`}
           >
             {toast.type === "success" ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
             <span>{toast.message}</span>
@@ -202,7 +199,7 @@ export default function AdminCategoriesPage() {
             </div>
           ) : categories.length === 0 ? (
             <div className="p-12 text-center text-slate-500 text-xs flex flex-col items-center justify-center">
-              <span className="text-4xl mb-2">📁</span>
+              <FolderPlus className="mb-2 h-9 w-9 text-slate-500" aria-hidden="true" />
               <h4 className="font-bold text-white">Kategori Kosong</h4>
               <p className="mt-1">Belum ada kategori yang dibuat. Klik tombol di atas untuk menambah.</p>
             </div>
@@ -326,13 +323,13 @@ export default function AdminCategoriesPage() {
           <div className="fixed inset-0 z-50 bg-[#06080D]/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-[#0E131F] border border-red-900/30 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
               <div className="p-6 flex flex-col items-center text-center gap-4">
-                <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center text-xl">
-                  ⚠️
+                <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center">
+                  <AlertTriangle size={21} aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">Hapus Kategori?</h3>
                   <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                    Apakah Anda yakin ingin menghapus kategori <span className="text-white font-bold">"{deleteTarget.name}"</span> secara permanen? Aksi ini tidak dapat dibatalkan.
+                    Apakah Anda yakin ingin menghapus kategori <span className="text-white font-bold">&quot;{deleteTarget.name}&quot;</span> secara permanen? Aksi ini tidak dapat dibatalkan.
                   </p>
                 </div>
 

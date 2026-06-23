@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  LayoutDashboard, Users, BookOpenCheck, History, LogOut, 
-  PlusCircle, FolderPlus, ShieldAlert, Clock, RefreshCw, Star
+  Users, FileQuestion, Swords, RadioTower, PlusCircle, FolderPlus,
+  ShieldAlert, Clock, RefreshCw
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import { getApiStatus } from "@/lib/errors";
 
 interface AdminStats {
   totalUsers: number;
@@ -49,7 +49,7 @@ interface RecentMatch {
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { logout } = useAuthStore();
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
@@ -59,7 +59,7 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAdminData = async () => {
+  const fetchAdminData = useCallback(async () => {
     try {
       setError(null);
       const [statsRes, usersRes, matchesRes] = await Promise.all([
@@ -71,10 +71,11 @@ export default function AdminPage() {
       setStats(statsRes.data);
       setRecentUsers(usersRes.data);
       setRecentMatches(matchesRes.data);
-    } catch (err: any) {
-      console.error("Failed to fetch admin dashboard data", err);
+    } catch (error: unknown) {
+      console.error("Failed to fetch admin dashboard data", error);
       setError("Gagal mengambil data administratif. Pastikan Anda masuk sebagai ADMIN.");
-      if (err.response?.status === 401 || err.response?.status === 403) {
+      const status = getApiStatus(error);
+      if (status === 401 || status === 403) {
         logout();
         router.push("/login");
       }
@@ -82,26 +83,15 @@ export default function AdminPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [logout, router]);
 
   useEffect(() => {
-    fetchAdminData();
-  }, [logout, router]);
+    void Promise.resolve().then(() => fetchAdminData());
+  }, [fetchAdminData]);
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchAdminData();
-  };
-
-  const handleLogout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch (err) {
-      console.error("Logout failed", err);
-    } finally {
-      logout();
-      router.push("/login");
-    }
   };
 
   return (
@@ -150,7 +140,7 @@ export default function AdminPage() {
                   <span className="text-[9px] text-indigo-400 font-semibold">Aktif di Arena</span>
                 </div>
                 <div className="w-11 h-11 bg-indigo-500/10 text-indigo-400 rounded-lg flex items-center justify-center text-lg">
-                  👤
+                  <Users size={19} aria-hidden="true" />
                 </div>
               </div>
 
@@ -162,7 +152,7 @@ export default function AdminPage() {
                   <span className="text-[9px] text-emerald-400 font-semibold">Aktif di Bank Soal</span>
                 </div>
                 <div className="w-11 h-11 bg-emerald-500/10 text-emerald-400 rounded-lg flex items-center justify-center text-lg">
-                  📝
+                  <FileQuestion size={19} aria-hidden="true" />
                 </div>
               </div>
 
@@ -174,7 +164,7 @@ export default function AdminPage() {
                   <span className="text-[9px] text-purple-400 font-semibold">Matchmaking Real-time</span>
                 </div>
                 <div className="w-11 h-11 bg-purple-500/10 text-purple-400 rounded-lg flex items-center justify-center text-lg">
-                  ⚔️
+                  <Swords size={19} aria-hidden="true" />
                 </div>
               </div>
 
@@ -186,7 +176,7 @@ export default function AdminPage() {
                   <span className="text-[9px] text-amber-400 font-semibold">Tersinkronisasi Socket.IO</span>
                 </div>
                 <div className="w-11 h-11 bg-amber-500/10 text-amber-400 rounded-lg flex items-center justify-center text-lg">
-                  🎮
+                  <RadioTower size={19} aria-hidden="true" />
                 </div>
               </div>
             </>
@@ -198,14 +188,14 @@ export default function AdminPage() {
           <h3 className="text-sm font-bold text-white mb-3">Tindakan Cepat (Quick Actions)</h3>
           <div className="flex flex-wrap gap-3">
             <button 
-              onClick={() => alert("Tambah Kategori... (Fase 4)")}
+              onClick={() => router.push("/admin/questions/create")}
               className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-md"
             >
               <PlusCircle size={14} />
               <span>Tambah Soal</span>
             </button>
             <button 
-              onClick={() => alert("Tambah Kategori... (Fase 4)")}
+              onClick={() => router.push("/admin/categories")}
               className="flex items-center gap-2 px-4 py-2.5 bg-[#172030] hover:bg-[#202C42] border border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
             >
               <FolderPlus size={14} className="text-indigo-400" />

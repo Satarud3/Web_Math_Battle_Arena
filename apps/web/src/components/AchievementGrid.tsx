@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Target, ShieldCheck, Zap, Flame, BookOpen, Lock, Loader2, Award } from "lucide-react";
+import { Target, ShieldCheck, Zap, Flame, BookOpen, Lock, Loader2, Award, type LucideIcon } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/errors";
 
 interface Achievement {
   id: string;
@@ -17,7 +18,7 @@ interface Achievement {
   unlockedAt: string | null;
 }
 
-const IconMapper: Record<string, React.ComponentType<any>> = {
+const IconMapper: Record<string, LucideIcon> = {
   Target: Target,
   ShieldCheck: ShieldCheck,
   Zap: Zap,
@@ -68,9 +69,9 @@ export default function AchievementGrid() {
       try {
         const res = await api.get("/achievements/me");
         setAchievements(res.data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Gagal mengambil data pencapaian", err);
-        setError("Gagal memuat daftar pencapaian.");
+        setError(getApiErrorMessage(err, "Gagal memuat daftar pencapaian."));
       } finally {
         setLoading(false);
       }

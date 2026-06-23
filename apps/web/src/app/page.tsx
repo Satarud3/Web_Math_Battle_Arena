@@ -2,9 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Activity, ArrowRight, Brain, Crown, Loader2, Lock, Radar, Sigma, Swords, Trophy } from "lucide-react";
+import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import api from "@/lib/api";
+import MathBackground from "@/components/ui/MathBackground";
+import GlassCard from "@/components/ui/GlassCard";
 
 interface LeaderboardEntry {
   id: string;
@@ -18,6 +21,21 @@ interface LeaderboardEntry {
   isCurrentUser?: boolean;
 }
 
+const modes = [
+  { title: "Ranked Battle", status: "LIVE", icon: Swords, copy: "Duel 1v1 real-time dengan taruhan rating point." },
+  { title: "Quick Match", status: "FAST", icon: Radar, copy: "Masuk cepat ke arena dan latih refleks numerik." },
+  { title: "AI Training Arena", status: "SOON", icon: Brain, copy: "Rekomendasi latihan personal berbasis performa." },
+  { title: "Practice Arena", status: "OPEN", icon: Sigma, copy: "Latihan solo dengan feedback dan pembahasan instan." },
+  { title: "Tournament Mode", status: "LOCKED", icon: Crown, copy: "Seasonal cup dengan hadiah dan leaderboard khusus." },
+];
+
+const stats = [
+  { label: "Total Players", value: "1.2K" },
+  { label: "Battles Played", value: "8.7K" },
+  { label: "Questions Solved", value: "42K" },
+  { label: "Online Players", value: "128" },
+];
+
 export default function Home() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +45,7 @@ export default function Home() {
     const fetchLeaderboard = async () => {
       try {
         const res = await api.get("/leaderboard/global");
-        setEntries(res.data.slice(0, 3));
+        setEntries(res.data.slice(0, 5));
       } catch (err) {
         console.error("Gagal memuat papan peringkat pratinjau", err);
         setError(true);
@@ -36,204 +54,184 @@ export default function Home() {
       }
     };
 
-    fetchLeaderboard();
+    void fetchLeaderboard();
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-foreground flex flex-col justify-between overflow-x-hidden">
-      {/* Header / Navbar */}
+    <div className="min-h-screen overflow-x-hidden text-foreground">
+      <MathBackground />
       <Navbar />
 
-      {/* Main Hero Section */}
-      <main className="flex-grow">
-        <section className="relative py-20 lg:py-32 overflow-hidden">
-          {/* Background decorative glows */}
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neon-blue/20 rounded-full blur-3xl -z-10 animate-pulse"></div>
-          <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-neon-purple/20 rounded-full blur-3xl -z-10 animate-[pulse_3s_infinite] delay-75"></div>
-
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            
-            {/* Inline Hero SVG Illustration */}
-            <div className="flex justify-center mb-10">
-              <svg width="160" height="160" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_15px_rgba(0,240,255,0.6)]">
-                {/* Outer rotating dashed ring */}
-                <circle cx="100" cy="100" r="90" fill="none" stroke="var(--color-neon-blue)" strokeWidth="2" strokeDasharray="15 10" className="origin-center animate-[spin_20s_linear_infinite]" />
-                {/* Inner rotating dashed ring */}
-                <circle cx="100" cy="100" r="70" fill="none" stroke="var(--color-neon-purple)" strokeWidth="3" strokeDasharray="30 15" className="origin-center animate-[spin_15s_linear_infinite_reverse]" />
-                {/* Pulsing diamond core */}
-                <path d="M100,45 L155,100 L100,155 L45,100 Z" fill="rgba(0,240,255,0.1)" stroke="var(--color-neon-gold)" strokeWidth="4" className="origin-center animate-pulse" />
-                {/* Math symbol */}
-                <text x="100" y="115" fontSize="48" fill="var(--color-text-primary)" textAnchor="middle" fontFamily="monospace" fontWeight="bold" className="drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">
-                  ∑
-                </text>
-              </svg>
+      <main>
+        <section className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl grid-cols-1 items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-neon-cyan/30 bg-neon-cyan/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.24em] text-neon-cyan">
+              Real-time duel | AI training | Ranked leaderboard
             </div>
-
-            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight">
-              Belajar Matematika Seperti <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-gold drop-shadow-[0_0_10px_rgba(176,38,255,0.3)]">
-                Bertarung di Arena Game!
+            <h1 className="font-arena text-5xl font-black leading-[0.95] text-white sm:text-6xl lg:text-7xl">
+              WHERE NUMBERS
+              <span className="mt-2 block bg-gradient-to-r from-neon-cyan via-neon-blue to-neon-purple bg-clip-text text-transparent">
+                BECOME LEGENDS
               </span>
             </h1>
-            <p className="mt-6 max-w-2xl mx-auto text-lg text-text-secondary">
-              Uji kecepatan berpikir dan logika matematika Anda. Hadapi lawan secara real-time, menangkan duel 1v1, dapatkan medali, dan capai peringkat tertinggi!
+            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
+              Masuki arena matematika kompetitif. Tantang pemain lain secara real-time, kalahkan soal, naikkan rank, dan buktikan bahwa logikamu layak menjadi legenda.
             </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                href="/register" 
-                className="px-8 h-14 flex items-center justify-center text-base font-semibold rounded-lg bg-gradient-to-r from-primary to-secondary text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(124,58,237,0.6)] hover:scale-105 transition-all duration-300"
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/register"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-neon-blue to-neon-purple px-7 text-sm font-black text-white shadow-[0_0_32px_rgba(59,130,246,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_0_44px_rgba(6,182,212,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-cyan"
               >
-                Daftar Sekarang
+                Mulai Bertarung <ArrowRight size={18} />
               </Link>
-              <Link 
-                href="/leaderboard" 
-                className="px-8 h-14 flex items-center justify-center text-base font-semibold rounded-lg bg-card border border-primary/20 text-foreground hover:bg-card/80 hover:border-primary/50 transition-all duration-300"
+              <Link
+                href="/leaderboard"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border-soft bg-white/[0.04] px-7 text-sm font-black text-white transition hover:border-neon-cyan/50 hover:bg-neon-cyan/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-cyan"
               >
-                Lihat Peringkat
+                Lihat Leaderboard <Trophy size={18} />
               </Link>
             </div>
-          </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.1 }}
+            className="relative min-h-[420px]"
+          >
+            <div className="absolute inset-0 rounded-full border border-neon-cyan/25 bg-neon-cyan/5 shadow-[0_0_120px_rgba(6,182,212,0.22)]" />
+            <div className="absolute inset-8 rounded-full border border-neon-purple/25" />
+            <div className="absolute inset-16 rounded-full border border-dashed border-neon-gold/30" />
+            <div className="absolute inset-0 grid place-items-center">
+              <div className="grid h-56 w-56 place-items-center rounded-[2rem] border border-neon-cyan/40 bg-bg-glass text-8xl font-black text-neon-cyan shadow-[0_0_70px_rgba(6,182,212,0.35)] glass-panel">
+                Σ
+              </div>
+            </div>
+            <GlassCard className="absolute left-0 top-10 max-w-[190px] p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-cyan">Live Formula</p>
+              <p className="mt-2 font-mono text-sm text-white">f(x)=x^2+7</p>
+            </GlassCard>
+            <GlassCard className="absolute bottom-8 right-0 max-w-[210px] p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-gold">Match Pulse</p>
+              <p className="mt-2 text-sm text-slate-200">Speed Strike ready under 3 seconds.</p>
+            </GlassCard>
+          </motion.div>
         </section>
 
-        {/* Features Grid */}
-        <section className="py-20 bg-card/30 border-y border-card">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto mb-16">
-              <h2 className="text-3xl font-bold tracking-tight text-white">Fitur Utama Arena</h2>
-              <p className="mt-4 text-text-muted">Semua yang Anda butuhkan untuk mengasah otak dengan cara yang kompetitif dan menyenangkan.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {/* Feature 1 */}
-              <div className="p-6 bg-card border border-primary/10 rounded-xl hover:border-primary/40 transition-colors duration-300 group">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xl font-bold mb-4 group-hover:bg-primary/20 transition-colors">
-                  ⚔️
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Duel 1 vs 1</h3>
-                <p className="text-sm text-text-muted">Bertanding matematika secara langsung (real-time) dengan lawan seimbang lewat matchmaking pintar.</p>
-              </div>
-
-              {/* Feature 2 */}
-              <div className="p-6 bg-card border border-primary/10 rounded-xl hover:border-primary/40 transition-colors duration-300 group">
-                <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary text-xl font-bold mb-4 group-hover:bg-secondary/20 transition-colors">
-                  🧠
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Mode Latihan</h3>
-                <p className="text-sm text-text-muted">Latih logika dan pemecahan masalah Anda secara mandiri tanpa tekanan waktu atau peringkat.</p>
-              </div>
-
-              {/* Feature 3 */}
-              <div className="p-6 bg-card border border-primary/10 rounded-xl hover:border-primary/40 transition-colors duration-300 group">
-                <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center text-accent text-xl font-bold mb-4 group-hover:bg-accent/20 transition-colors">
-                  🏆
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Sistem Peringkat</h3>
-                <p className="text-sm text-text-muted">Kumpulkan rating poin dari setiap kemenangan dan tingkatkan tier Anda dari Bronze hingga Master.</p>
-              </div>
-
-              {/* Feature 4 */}
-              <div className="p-6 bg-card border border-primary/10 rounded-xl hover:border-primary/40 transition-colors duration-300 group">
-                <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center text-success text-xl font-bold mb-4 group-hover:bg-success/20 transition-colors">
-                  📊
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Statistik Pemain</h3>
-                <p className="text-sm text-text-muted">Pantau kemajuan Anda melalui grafik akurasi jawaban, waktu respon rata-rata, dan histori pertandingan.</p>
-              </div>
-            </div>
-          </div>
+        <section className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 pb-12 sm:px-6 lg:grid-cols-4 lg:px-8">
+          {stats.map((stat) => (
+            <GlassCard key={stat.label} className="card-shimmer p-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{stat.label}</p>
+              <p className="mt-2 text-3xl font-black text-white">{stat.value}</p>
+            </GlassCard>
+          ))}
         </section>
 
-        {/* Live Leaderboard Preview */}
-        <section className="py-20">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-white mb-8">Puncak Papan Peringkat</h2>
-            <div className="bg-card rounded-xl border border-primary/10 overflow-hidden shadow-lg">
-              <div className="p-4 bg-background/50 border-b border-primary/10 flex justify-between font-semibold text-text-muted text-sm">
-                <span>Peringkat</span>
-                <span className="flex-1 text-left pl-8">Pemain</span>
-                <span>Poin Rating</span>
-              </div>
-              <div className="divide-y divide-primary/5">
-                {loading && (
-                  <div className="p-8 flex flex-col items-center justify-center text-text-muted gap-2">
-                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                    <span className="text-sm">Memuat data papan peringkat...</span>
-                  </div>
-                )}
-
-                {error && (
-                  <div className="p-8 text-center text-red-400 text-sm">
-                    Gagal memuat data papan peringkat global.
-                  </div>
-                )}
-
-                {!loading && !error && entries.length === 0 && (
-                  <div className="p-8 text-center text-text-muted text-sm">
-                    Belum ada data ksatria matematika.
-                  </div>
-                )}
-
-                {!loading && !error && entries.map((entry) => {
-                  let medal = "";
-                  let rankColor = "text-text-muted";
-                  let pointsColor = "text-foreground";
-
-                  if (entry.rank === 1) {
-                    medal = "🥇";
-                    rankColor = "text-accent";
-                    pointsColor = "text-accent";
-                  } else if (entry.rank === 2) {
-                    medal = "🥈";
-                    rankColor = "text-gray-300";
-                    pointsColor = "text-secondary";
-                  } else if (entry.rank === 3) {
-                    medal = "🥉";
-                    rankColor = "text-amber-600";
-                    pointsColor = "text-primary";
-                  }
-
-                  return (
-                    <div key={entry.id || entry.userId} className="p-4 flex justify-between items-center hover:bg-card/20 transition-colors">
-                      <span className={`${rankColor} font-bold text-lg w-12 flex items-center gap-1`}>
-                        <span>{medal}</span>
-                        <span className="text-xs text-text-muted font-normal">#{entry.rank}</span>
-                      </span>
-                      <span className="flex-1 text-left pl-8 font-medium truncate">
-                        <Link 
-                          href={entry.isCurrentUser ? "/profile" : `/profile/${entry.username}`}
-                          className="hover:text-primary transition-colors"
-                        >
-                          @{entry.username}
-                        </Link>
-                      </span>
-                      <span className={`font-bold ${pointsColor}`}>
-                        {entry.ratingPoint} RP
-                      </span>
+        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="mb-7 flex items-end justify-between gap-4">
+            <div>
+              <p className="font-arena text-xs font-black uppercase text-neon-cyan">Game Modes</p>
+              <h2 className="mt-2 text-3xl font-black text-white">Choose Your Arena</h2>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+            {modes.map((mode) => {
+              const Icon = mode.icon;
+              const locked = mode.status === "LOCKED" || mode.status === "SOON";
+              return (
+                <GlassCard key={mode.title} className={`card-shimmer p-5 ${locked ? "opacity-75" : ""}`}>
+                  <div className="mb-5 flex items-center justify-between">
+                    <div className="grid h-11 w-11 place-items-center rounded-xl border border-neon-cyan/25 bg-neon-cyan/10 text-neon-cyan">
+                      <Icon size={22} />
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="mt-8">
-              <Link 
-                href="/leaderboard" 
-                className="text-primary hover:text-primary/80 font-semibold inline-flex items-center gap-1 transition-colors"
-              >
-                Lihat Selengkapnya &rarr;
-              </Link>
-            </div>
+                    <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black text-slate-300">
+                      {mode.status}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-white">{mode.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">{mode.copy}</p>
+                  <div className="mt-5 text-xs font-black uppercase text-neon-cyan">
+                    {locked ? "Coming soon" : "Enter mode"}
+                  </div>
+                </GlassCard>
+              );
+            })}
           </div>
+        </section>
+
+        <section className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-14 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+          <GlassCard className="p-6">
+            <p className="font-arena text-xs font-black uppercase text-neon-pink">Mathematics Showcase</p>
+            <h2 className="mt-2 text-3xl font-black text-white">Holographic Logic Lab</h2>
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              {["Algebra Graph", "Geometry Grid", "Calculus Curve", "Probability Sim"].map((panel) => (
+                <div key={panel} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <Activity className="mb-4 text-neon-cyan" size={22} />
+                  <p className="text-sm font-bold text-white">{panel}</p>
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-neon-cyan to-neon-purple" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+
+          <GlassCard className="overflow-hidden p-0">
+            <div className="border-b border-border-soft p-5">
+              <p className="font-arena text-xs font-black uppercase text-neon-gold">Global Leaderboard</p>
+              <h2 className="mt-2 text-2xl font-black text-white">Top Arena Challengers</h2>
+            </div>
+            {loading && (
+              <div className="grid place-items-center gap-3 p-10 text-slate-400">
+                <Loader2 className="animate-spin text-neon-cyan" />
+                <span className="text-sm">Memuat data papan peringkat...</span>
+              </div>
+            )}
+            {error && <div className="p-8 text-sm text-red-300">Gagal memuat data papan peringkat global.</div>}
+            {!loading && !error && entries.map((entry) => (
+              <Link
+                key={entry.id || entry.userId}
+                href={entry.isCurrentUser ? "/profile" : `/profile/${entry.username}`}
+                className="flex items-center justify-between border-b border-white/5 p-5 transition hover:bg-white/[0.04]"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="grid h-11 w-11 place-items-center rounded-xl border border-neon-gold/20 bg-neon-gold/10 text-sm font-black text-neon-gold">
+                    #{entry.rank}
+                  </div>
+                  <div>
+                    <p className="font-bold text-white">@{entry.username}</p>
+                    <p className="text-xs text-slate-500">{entry.tier} Division</p>
+                  </div>
+                </div>
+                <p className="font-black text-neon-cyan">{entry.ratingPoint} RP</p>
+              </Link>
+            ))}
+          </GlassCard>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+          <GlassCard className="grid gap-6 p-6 md:grid-cols-[1fr_auto] md:items-center">
+            <div>
+              <p className="font-arena text-xs font-black uppercase text-neon-gold">Season Tournament</p>
+              <h2 className="mt-2 text-3xl font-black text-white">Sigma Cup is charging</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+                Turnamen musiman dengan bracket, reward pool, dan badge eksklusif sedang disiapkan.
+              </p>
+            </div>
+            <button disabled className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-neon-gold/30 bg-neon-gold/10 px-6 text-sm font-black text-neon-gold">
+              <Lock size={17} /> Coming Soon
+            </button>
+          </GlassCard>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-card py-8 bg-background/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-text-muted">
-          <p>&copy; 2026 Math Battle Arena. Dibuat untuk kesenangan dan kecerdasan.</p>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-foreground transition-colors">Panduan</a>
-            <a href="#" className="hover:text-foreground transition-colors">Aturan</a>
-            <a href="#" className="hover:text-foreground transition-colors">Kontak</a>
+      <footer className="border-t border-white/10 bg-bg-deep/70 px-4 py-8 text-sm text-slate-500">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p>Math Battle Arena turns logic into competitive power.</p>
+          <div className="flex gap-5">
+            <a href="#" className="hover:text-white">Rules</a>
+            <a href="#" className="hover:text-white">Community</a>
+            <a href="#" className="hover:text-white">Privacy</a>
           </div>
         </div>
       </footer>

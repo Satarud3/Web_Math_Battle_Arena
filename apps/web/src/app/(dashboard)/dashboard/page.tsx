@@ -4,13 +4,16 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
-  User as UserIcon, Trophy, Activity, LogOut, Play, Swords, 
-  Award, Clock, Target, ShieldAlert, Sparkles, History
+  Trophy, Activity, Play, Swords, Award, Clock, Target, ShieldAlert, Sparkles, History,
+  Brain, RadioTower, Lock, Medal, Flame
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import Navbar from "@/components/Navbar";
 import { motion } from "framer-motion";
+import MathBackground from "@/components/ui/MathBackground";
+import RankBadge from "@/components/game/RankBadge";
+import { getApiStatus } from "@/lib/errors";
 
 interface MatchPlayer {
   userId: string;
@@ -88,11 +91,11 @@ export default function DashboardPage() {
       try {
         const response = await api.get("/users/profile");
         setUser(response.data);
-      } catch (err: any) {
-        console.error("Failed to fetch profile", err);
+      } catch (error: unknown) {
+        console.error("Failed to fetch profile", error);
         setProfileError("Gagal mengambil profil dasar.");
         // Redirect to login if unauthorized
-        if (err.response?.status === 401) {
+        if (getApiStatus(error) === 401) {
           logout();
           router.push("/login");
         }
@@ -106,8 +109,8 @@ export default function DashboardPage() {
         const response = await api.get("/users/stats");
         setStats(response.data.userStats);
         setRanking(response.data.ranking);
-      } catch (err: any) {
-        console.error("Failed to fetch stats", err);
+      } catch (error: unknown) {
+        console.error("Failed to fetch stats", error);
         setStatsError("Gagal mengambil statistik peringkat.");
       } finally {
         setLoadingStats(false);
@@ -118,8 +121,8 @@ export default function DashboardPage() {
       try {
         const response = await api.get("/users/matches/recent");
         setRecentMatches(response.data);
-      } catch (err: any) {
-        console.error("Failed to fetch matches", err);
+      } catch (error: unknown) {
+        console.error("Failed to fetch matches", error);
         setMatchesError("Gagal mengambil riwayat pertandingan.");
       } finally {
         setLoadingMatches(false);
@@ -131,30 +134,9 @@ export default function DashboardPage() {
     fetchRecentMatches();
   }, [setUser, logout, router]);
 
-  const handleLogout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch (err) {
-      console.error("Logout failed", err);
-    } finally {
-      logout();
-      router.push("/login");
-    }
-  };
-
-  const getTierIcon = (tierName: string) => {
-    const tier = (tierName || "Bronze").toLowerCase();
-    if (tier.includes("gold")) return "👑";
-    if (tier.includes("silver")) return "🥈";
-    return "🥉";
-  };
-
-  const isDataLoading = loadingProfile || loadingStats || loadingMatches;
-
   return (
     <div className="min-h-[100dvh] bg-bg-main text-slate-100 flex flex-col font-sans relative">
-      {/* Cyber-grid background */}
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(0,240,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,240,255,0.3) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      <MathBackground />
       {/* Navigation Header */}
       <Navbar />
 
@@ -225,11 +207,10 @@ export default function DashboardPage() {
                   Peringkat Tier
                 </span>
                 <div className="my-2">
-                  <div className="text-xl sm:text-2xl font-black text-amber-400 flex items-center gap-1.5">
-                    <span>{getTierIcon(ranking?.tier || "Bronze")}</span>
-                    <span>{ranking?.tier || "Bronze"}</span>
-                  </div>
-                  <span className="text-xs text-slate-400 font-semibold">{ranking?.ratingPoint || 1000} Rating Point</span>
+                  <RankBadge
+                    tier={ranking?.tier || "Bronze"}
+                    ratingPoint={ranking?.ratingPoint || 1000}
+                  />
                 </div>
                 <span className="text-[10px] text-indigo-400 font-medium">Rank Global: #{ranking?.currentRank || "-"}</span>
               </motion.div>
@@ -300,12 +281,12 @@ export default function DashboardPage() {
             >
               <div>
                 <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-lg mb-3 group-hover:scale-110 transition-transform">
-                  🧠
+                  <Brain size={18} aria-hidden="true" />
                 </div>
                 <h4 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">Mode Latihan</h4>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">Asah kemampuan matematika secara solo dengan bank soal pilihan.</p>
               </div>
-              <span className="text-[10px] text-emerald-400 font-bold mt-3">MULAI BERMAIN →</span>
+              <span className="text-[10px] text-emerald-400 font-bold mt-3">MULAI BERMAIN</span>
             </motion.div>
 
             {/* Duel 1v1 Card */}
@@ -317,19 +298,19 @@ export default function DashboardPage() {
             >
               <div>
                 <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-lg mb-3 group-hover:scale-110 transition-transform">
-                  ⚔️
+                  <Swords size={18} aria-hidden="true" />
                 </div>
                 <h4 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">Duel 1 vs 1</h4>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">Bertempur secara real-time satu lawan satu dengan pemain lain.</p>
               </div>
-              <span className="text-[10px] text-blue-400 font-bold mt-3">CARI MATCHMAKING →</span>
+              <span className="text-[10px] text-blue-400 font-bold mt-3">CARI MATCHMAKING</span>
             </motion.div>
 
             {/* Battle Royale Card */}
             <div className="p-5 rounded-xl border border-slate-800/40 bg-bg-card/50 opacity-50 cursor-not-allowed flex flex-col justify-between min-h-[140px]">
               <div>
                 <div className="w-9 h-9 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-lg mb-3">
-                  🌋
+                  <RadioTower size={18} aria-hidden="true" />
                 </div>
                 <h4 className="text-sm font-bold text-slate-400">Battle Royale</h4>
                 <p className="text-xs text-slate-500 mt-1">Bertahan hidup dari rentetan soal matematika dengan puluhan pemain lain.</p>
@@ -341,7 +322,7 @@ export default function DashboardPage() {
             <div className="p-5 rounded-xl border border-slate-800/40 bg-bg-card/50 opacity-50 cursor-not-allowed flex flex-col justify-between min-h-[140px]">
               <div>
                 <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-lg mb-3">
-                  🏆
+                  <Lock size={18} aria-hidden="true" />
                 </div>
                 <h4 className="text-sm font-bold text-slate-400">Turnamen Global</h4>
                 <p className="text-xs text-slate-500 mt-1">Kejuaraan musiman terjadwal untuk memperebutkan mahkota juara.</p>
@@ -430,7 +411,7 @@ export default function DashboardPage() {
                           {m.totalScore} Poin
                         </div>
                         <span className="text-[10px] text-slate-500">
-                          {m.correctCount} Benar • {m.wrongCount} Salah
+                          {m.correctCount} Benar / {m.wrongCount} Salah
                         </span>
                       </div>
                     </div>
@@ -448,21 +429,21 @@ export default function DashboardPage() {
             </h3>
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 bg-bg-card/50 rounded-xl border border-slate-800/30">
-                <span className="text-2xl">🥇</span>
+                <Medal className="h-6 w-6 text-amber-400" aria-hidden="true" />
                 <div>
                   <div className="text-xs sm:text-sm font-bold text-white">First Win</div>
                   <p className="text-[10px] text-slate-400">Menang pertama kali dalam mode duel 1v1.</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-bg-card/50 rounded-xl border border-slate-800/30">
-                <span className="text-2xl">🎯</span>
+                <Target className="h-6 w-6 text-neon-cyan" aria-hidden="true" />
                 <div>
                   <div className="text-xs sm:text-sm font-bold text-white">Aritmetika Master</div>
                   <p className="text-[10px] text-slate-400">Menyelesaikan duel dengan akurasi 100%.</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-bg-card/20 rounded-xl border border-slate-800/10 opacity-40">
-                <span className="text-2xl">🔥</span>
+                <Flame className="h-6 w-6 text-slate-500" aria-hidden="true" />
                 <div>
                   <div className="text-xs sm:text-sm font-bold text-slate-400">Streak Legend (Lock)</div>
                   <p className="text-[10px] text-slate-500">Capai kemenangan beruntun sebanyak 5 kali.</p>
