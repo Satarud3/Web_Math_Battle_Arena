@@ -10,6 +10,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { GameModule } from './game/game.module';
 import { AdminModule } from './admin/admin.module';
 import { PracticeModule } from './practice/practice.module';
+import { AchievementsModule } from './achievements/achievements.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { PracticeModule } from './practice/practice.module';
     GameModule,
     AdminModule,
     PracticeModule,
+    AchievementsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

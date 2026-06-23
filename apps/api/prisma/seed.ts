@@ -61,7 +61,7 @@ async function main() {
     create: {
       userId: adminUser.id,
       ratingPoint: 1000,
-      tier: 'Bronze',
+      tier: 'Silver',
     },
   });
 
@@ -102,16 +102,64 @@ async function main() {
 
   // 4. Achievements
   const achievements = [
-    { name: 'First Win', description: 'Menang pertama kali dalam mode duel 1v1.', conditionType: 'win_count', conditionValue: 1, rewardPoint: 50 },
-    { name: 'Sharp Shooter', description: 'Menyelesaikan duel dengan akurasi 100%.', conditionType: 'accuracy', conditionValue: 100, rewardPoint: 100 },
-    { name: 'Battle Master', description: 'Menang 10 kali dalam mode duel.', conditionType: 'win_count', conditionValue: 10, rewardPoint: 200 },
-    { name: 'Streak Master', description: 'Capai kemenangan beruntun (streak) sebanyak 5 kali.', conditionType: 'win_streak', conditionValue: 5, rewardPoint: 150 },
+    {
+      code: 'FIRST_BLOOD',
+      name: 'First Blood',
+      description: 'Memenangkan duel 1v1 pertamamu.',
+      icon: 'Target',
+      requirementType: 'win_count',
+      requirementValue: 1,
+      rewardPoint: 50,
+    },
+    {
+      code: 'FLAWLESS_VICTORY',
+      name: 'Flawless',
+      description: 'Mencapai Akurasi 100% dalam satu sesi duel.',
+      icon: 'ShieldCheck',
+      requirementType: 'accuracy',
+      requirementValue: 100,
+      rewardPoint: 100,
+    },
+    {
+      code: 'ASSASSIN_INSTINCT',
+      name: "Assassin's Instinct",
+      description: 'Menjawab soal dengan benar dalam waktu kurang dari 3 detik.',
+      icon: 'Zap',
+      requirementType: 'speed',
+      requirementValue: 3,
+      rewardPoint: 100,
+    },
+    {
+      code: 'UNSTOPPABLE',
+      name: 'Unstoppable',
+      description: 'Mencapai Win Streak 5 kali berturut-turut.',
+      icon: 'Flame',
+      requirementType: 'win_streak',
+      requirementValue: 5,
+      rewardPoint: 150,
+    },
+    {
+      code: 'SCHOLAR',
+      name: 'Hardcore Scholar',
+      description: 'Menyelesaikan total 50 pertandingan (Practice/Duel).',
+      icon: 'BookOpen',
+      requirementType: 'total_matches',
+      requirementValue: 50,
+      rewardPoint: 200,
+    },
   ];
 
   for (const achievement of achievements) {
     await prisma.achievement.upsert({
-      where: { name: achievement.name },
-      update: {},
+      where: { code: achievement.code },
+      update: {
+        name: achievement.name,
+        description: achievement.description,
+        icon: achievement.icon,
+        requirementType: achievement.requirementType,
+        requirementValue: achievement.requirementValue,
+        rewardPoint: achievement.rewardPoint,
+      },
       create: achievement,
     });
   }

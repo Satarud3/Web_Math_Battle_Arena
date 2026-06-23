@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Server } from 'socket.io';
 import { MatchMode, MatchStatus, MatchResult, Question } from '@prisma/client';
+import { getTier } from '../common/utils/tier';
+import { AchievementsService } from '../achievements/achievements.service';
 
 export interface RoomPlayer {
   userId: string;
@@ -33,7 +35,10 @@ export class RoomService {
   private server: Server;
   private rooms: Map<string, GameRoom> = new Map();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly achievementsService: AchievementsService,
+  ) {}
 
   setServer(server: Server) {
     this.server = server;
@@ -401,6 +406,7 @@ export class RoomService {
           const totalCorrectAnswers = stats.totalCorrectAnswers + p.correctCount;
           const accuracy = totalQuestionsAnswered > 0 ? (totalCorrectAnswers / totalQuestionsAnswered) * 100 : 0;
           const winRate = totalMatches > 0 ? (totalWins / totalMatches) * 100 : 0;
+          const currentStreak = result === MatchResult.WIN ? stats.currentStreak + 1 : 0;
 
           await tx.userStats.update({
             where: { userId: p.userId },
@@ -413,6 +419,7 @@ export class RoomService {
               totalCorrectAnswers,
               accuracy: parseFloat(accuracy.toFixed(2)),
               winRate: parseFloat(winRate.toFixed(2)),
+              currentStreak,
             },
           });
         }
@@ -423,10 +430,11 @@ export class RoomService {
         });
 
         if (ranking) {
-          const oldPoint = ranking.ratingPoint;
+          const oldPoint = Number(ranking.ratingPoint);
           let change = 0;
           if (result === MatchResult.WIN) change = 25;
-          else if (result === MatchResult.LOSE) change = -20;
+          else if (result === MatchResult.LOSE) change = -10;
+          else if (result === MatchResult.DRAW) change = 5;
 
           const newPoint = Math.max(0, oldPoint + change);
           mmrChanges[p.userId] = change;
@@ -435,6 +443,7 @@ export class RoomService {
             where: { userId: p.userId },
             data: {
               ratingPoint: newPoint,
+              tier: getTier(newPoint),
             },
           });
 
@@ -452,6 +461,10 @@ export class RoomService {
       }
     });
 
+    // Evaluate Achievements for both players
+    const p1Achievements = await this.achievementsService.evaluateMatchAchievements(p1.userId, matchId);
+    const p2Achievements = await this.achievementsService.evaluateMatchAchievements(p2.userId, matchId);
+
     // Emit match_finished to both players
     this.server.to(matchId).emit('match_finished', {
       matchId,
@@ -465,6 +478,10 @@ export class RoomService {
         [p2.userId]: p2Result,
       },
       mmrChanges,
+      unlockedAchievements: {
+        [p1.userId]: p1Achievements,
+        [p2.userId]: p2Achievements,
+      },
     });
 
     // Strict Cleanup for memory leak prevention
@@ -537,6 +554,7 @@ export class RoomService {
           const totalCorrectAnswers = stats.totalCorrectAnswers + p.correctCount;
           const accuracy = totalQuestionsAnswered > 0 ? (totalCorrectAnswers / totalQuestionsAnswered) * 100 : 0;
           const winRate = totalMatches > 0 ? (totalWins / totalMatches) * 100 : 0;
+          const currentStreak = result === MatchResult.WIN ? stats.currentStreak + 1 : 0;
 
           await tx.userStats.update({
             where: { userId: p.userId },
@@ -548,6 +566,7 @@ export class RoomService {
               totalCorrectAnswers,
               accuracy: parseFloat(accuracy.toFixed(2)),
               winRate: parseFloat(winRate.toFixed(2)),
+              currentStreak,
             },
           });
         }
@@ -558,8 +577,8 @@ export class RoomService {
         });
 
         if (ranking) {
-          const oldPoint = ranking.ratingPoint;
-          const change = result === MatchResult.WIN ? 25 : -20;
+          const oldPoint = Number(ranking.ratingPoint);
+          const change = result === MatchResult.WIN ? 25 : -10;
           const newPoint = Math.max(0, oldPoint + change);
           mmrChanges[p.userId] = change;
 
@@ -567,6 +586,7 @@ export class RoomService {
             where: { userId: p.userId },
             data: {
               ratingPoint: newPoint,
+              tier: getTier(newPoint),
             },
           });
 
@@ -583,6 +603,10 @@ export class RoomService {
       }
     });
 
+    // Evaluate Achievements for both players
+    const p1Achievements = await this.achievementsService.evaluateMatchAchievements(players[0].userId, matchId);
+    const p2Achievements = await this.achievementsService.evaluateMatchAchievements(players[1].userId, matchId);
+
     this.server.to(matchId).emit('match_finished', {
       matchId,
       winnerUserId: winnerId,
@@ -596,6 +620,10 @@ export class RoomService {
       },
       mmrChanges,
       reason: 'Lawan meninggalkan pertandingan',
+      unlockedAchievements: {
+        [players[0].userId]: p1Achievements,
+        [players[1].userId]: p2Achievements,
+      },
     });
 
     // Clean up map room

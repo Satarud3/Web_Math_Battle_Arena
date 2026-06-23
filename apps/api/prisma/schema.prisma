@@ -201,11 +201,12 @@ model LeaderboardLog {
 
 model Achievement {
   id               String            @id @default(uuid()) @db.Uuid
+  code             String            @unique
   name             String            @unique
   description      String?
-  iconUrl          String?           @map("icon_url")
-  conditionType    String            @map("condition_type")
-  conditionValue   Int               @map("condition_value")
+  icon             String?
+  requirementType  String            @map("requirement_type")
+  requirementValue Int               @map("requirement_value")
   rewardPoint      Int               @default(0) @map("reward_point")
   createdAt        DateTime          @default(now()) @map("created_at")
   userAchievements UserAchievement[]
@@ -219,7 +220,7 @@ model UserAchievement {
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   achievementId String      @map("achievement_id") @db.Uuid
   achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
-  earnedAt      DateTime    @default(now()) @map("earned_at")
+  unlockedAt    DateTime    @default(now()) @map("unlocked_at")
 
   @@unique([userId, achievementId])
   @@map("user_achievements")
@@ -237,6 +238,7 @@ model UserStats {
   totalCorrectAnswers    Int      @default(0) @map("total_correct_answers")
   accuracy               Decimal  @default(0.0) @db.Decimal(5, 2)
   winRate                Decimal  @default(0.0) @map("win_rate") @db.Decimal(5, 2)
+  currentStreak          Int      @default(0) @map("current_streak")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   @@map("user_stats")

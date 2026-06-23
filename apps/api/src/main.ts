@@ -35,8 +35,13 @@ async function bootstrap() {
   }));
 
   // Enable CORS
+  const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
+  }
+
   app.enableCors({
-    origin: 'http://localhost:3000', // Port frontend Next.js
+    origin: allowedOrigins,
     credentials: true,               // Wajib true agar cookie HttpOnly bisa lewat
   });
 

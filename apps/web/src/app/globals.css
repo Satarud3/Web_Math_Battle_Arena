@@ -1,15 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0B1020;
-  --foreground: #F8FAFC;
-  --card: #111A33;
-  --primary: #2563EB;
-  --secondary: #7C3AED;
-  --accent: #F59E0B;
-  --text-muted: #94A3B8;
-  --success: #22C55E;
-  --danger: #EF4444;
+  --bg-main: #0B1020;
+  --bg-card: #151C33;
+  --neon-blue: #00F0FF;
+  --neon-purple: #B026FF;
+  --neon-gold: #FFB800;
+  --neon-red: #FF2A2A;
+  --neon-green: #00FF66;
+  --text-primary: #FFFFFF;
+  --text-secondary: #94A3B8;
+
+  /* Backward compatibility for existing components */
+  --background: var(--bg-main);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --primary: var(--neon-blue);
+  --secondary: var(--neon-purple);
+  --accent: var(--neon-gold);
+  --text-muted: var(--text-secondary);
+  --success: var(--neon-green);
+  --danger: var(--neon-red);
 }
 
 @theme {
@@ -22,6 +33,16 @@
   --color-text-muted: var(--text-muted);
   --color-success: var(--success);
   --color-danger: var(--danger);
+
+  --color-bg-main: var(--bg-main);
+  --color-bg-card: var(--bg-card);
+  --color-neon-blue: var(--neon-blue);
+  --color-neon-purple: var(--neon-purple);
+  --color-neon-gold: var(--neon-gold);
+  --color-neon-red: var(--neon-red);
+  --color-neon-green: var(--neon-green);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
   
   --font-sans: var(--font-geist-sans), Inter, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;

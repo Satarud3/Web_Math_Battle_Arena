@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Clock, Swords, Trophy, Activity, Award, CheckCircle, XCircle, ArrowRight, HelpCircle } from "lucide-react";
 import { socket } from "@/lib/socket";
 import { useAuthStore } from "@/store/authStore";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Question {
   id: string;
@@ -39,6 +40,7 @@ export default function ArenaPlayPage() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<any[]>([]);
 
   // Server controlled timing
   const [endTime, setEndTime] = useState<number | null>(null);
@@ -191,10 +193,19 @@ export default function ArenaPlayPage() {
 
     const handleMatchFinished = (data: any) => {
       console.log("[Socket] Match finished:", data);
-      // Wait 1.5s for final results transition
-      setTimeout(() => {
-        router.push(`/arena/${matchId}/result`);
-      }, 1500);
+      
+      const myAchievements = user?.id && data.unlockedAchievements ? data.unlockedAchievements[user.id] || [] : [];
+      if (myAchievements.length > 0) {
+        setUnlockedAchievements(myAchievements);
+        // Delay redirect to allow reading
+        setTimeout(() => {
+          router.push(`/arena/${matchId}/result`);
+        }, 5000);
+      } else {
+        setTimeout(() => {
+          router.push(`/arena/${matchId}/result`);
+        }, 1500);
+      }
     };
 
     socket.on("connect", onConnect);
@@ -257,9 +268,9 @@ export default function ArenaPlayPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0B0F19] text-white flex flex-col justify-center items-center gap-4">
-        <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-400 rounded-full animate-spin" />
-        <p className="text-slate-400 text-sm font-medium animate-pulse">Menghubungkan ke arena...</p>
+      <div className="min-h-screen bg-bg-main text-white flex flex-col justify-center items-center gap-4">
+        <div className="w-12 h-12 border-4 border-neon-blue/20 border-t-neon-blue rounded-full animate-spin" />
+        <p className="text-text-secondary text-sm font-medium animate-pulse">Menghubungkan ke arena...</p>
       </div>
     );
   }
@@ -275,11 +286,11 @@ export default function ArenaPlayPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-bg-main text-text-primary py-8 px-4 sm:px-6 lg:px-8 overflow-hidden relative">
       <div className="max-w-4xl mx-auto">
         
         {/* SCOREBOARD CONTAINER */}
-        <div className="grid grid-cols-3 bg-[#0E1524]/90 border border-slate-800 rounded-2xl p-4 mb-8 shadow-xl items-center relative overflow-hidden">
+        <div className="grid grid-cols-3 bg-bg-card/90 border border-slate-800 rounded-2xl p-4 mb-8 shadow-[0_0_20px_rgba(0,240,255,0.1)] items-center relative overflow-hidden backdrop-blur-md">
           {/* Player 1 Left */}
           <div className="text-left flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-bold text-blue-400 text-sm shrink-0">
@@ -337,8 +348,12 @@ export default function ArenaPlayPage() {
 
         {/* ACTIVE QUESTION PANEL */}
         {question && (
-          <div className="bg-[#0E1524]/80 backdrop-blur-md border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -z-10" />
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-bg-card/80 backdrop-blur-md border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative"
+          >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-neon-blue/5 rounded-full blur-3xl -z-10" />
 
             {/* Question Text */}
             <div className="mb-8">
@@ -348,7 +363,7 @@ export default function ArenaPlayPage() {
             </div>
 
             {/* Options List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               {Object.entries(question.options).map(([key, val]) => {
                 const isSelected = selectedOption === key;
                 const hasFeedback = !!feedback;
@@ -363,30 +378,32 @@ export default function ArenaPlayPage() {
 
                 if (hasFeedback) {
                   if (isCorrectOption) {
-                    btnStyle = "border-green-500 bg-green-500/10 text-green-300 shadow-[0_0_15px_rgba(34,197,94,0.15)]";
-                    keyStyle = "bg-green-600 text-white";
+                    btnStyle = "border-neon-green bg-neon-green/10 text-neon-green shadow-[0_0_15px_rgba(0,255,102,0.15)]";
+                    keyStyle = "bg-neon-green text-black";
                   } else if (p1Chosen && !me.isCorrect) {
-                    btnStyle = "border-red-500 bg-red-500/10 text-red-300 shadow-[0_0_15px_rgba(239,68,68,0.15)]";
-                    keyStyle = "bg-red-600 text-white";
+                    btnStyle = "border-neon-red bg-neon-red/10 text-neon-red shadow-[0_0_15px_rgba(255,42,42,0.15)]";
+                    keyStyle = "bg-neon-red text-white";
                   } else {
                     btnStyle = "border-slate-900 bg-slate-900/40 text-slate-600 opacity-50";
                     keyStyle = "bg-slate-900 text-slate-700";
                   }
                 } else if (isSelected) {
-                  btnStyle = "border-indigo-500 bg-indigo-600/20 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]";
-                  keyStyle = "bg-indigo-600 text-white";
+                  btnStyle = "border-neon-blue bg-neon-blue/20 text-neon-blue shadow-[0_0_15px_rgba(0,240,255,0.15)]";
+                  keyStyle = "bg-neon-blue text-black";
                 } else if (selectedOption !== null) {
                   btnStyle = "border-slate-900 bg-slate-900/40 text-slate-500 opacity-40";
                   keyStyle = "bg-slate-900 text-slate-600";
                 }
 
                 return (
-                  <button
+                  <motion.button
+                    whileHover={!hasFeedback && selectedOption === null ? { scale: 1.02, boxShadow: "0 0 15px rgba(0, 240, 255, 0.4)", borderColor: "var(--color-neon-blue)" } : {}}
+                    whileTap={!hasFeedback && selectedOption === null ? { scale: 0.98 } : {}}
                     key={key}
                     type="button"
                     disabled={selectedOption !== null || hasFeedback || submitting}
                     onClick={() => handleSelectOption(key)}
-                    className={`w-full text-left p-4 sm:p-5 rounded-2xl border text-sm sm:text-base font-semibold flex items-center justify-between gap-4 transition-all duration-200 ${btnStyle}`}
+                    className={`w-full text-left p-4 sm:p-5 rounded-2xl border text-sm sm:text-base font-semibold flex items-center justify-between gap-4 transition-colors duration-200 ${btnStyle}`}
                   >
                     <div className="flex items-center gap-4">
                       <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${keyStyle}`}>
@@ -410,17 +427,20 @@ export default function ArenaPlayPage() {
                         )}
                       </div>
                     )}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
 
             {/* Waiting status for other player */}
             {selectedOption && !feedback && (
-              <div className="text-center p-4 bg-slate-900/40 border border-slate-800 rounded-2xl flex items-center justify-center gap-3 text-slate-400 text-sm animate-pulse">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="text-center p-4 bg-slate-900/40 border border-slate-800 rounded-2xl flex items-center justify-center gap-3 text-slate-400 text-sm animate-pulse"
+              >
                 <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
                 <span>Menunggu lawan menjawab...</span>
-              </div>
+              </motion.div>
             )}
 
             {/* Feedback & explanation container */}
@@ -470,10 +490,60 @@ export default function ArenaPlayPage() {
               </div>
             )}
 
-          </div>
+          </motion.div>
         )}
 
       </div>
+
+      {/* Real-time Achievement Unlock Alert Popup Overlay */}
+      <AnimatePresence>
+        {unlockedAchievements.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[#0B0F19]/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4"
+          >
+            <div className="space-y-4 max-w-sm w-full">
+              {unlockedAchievements.map((ach, index) => {
+                let emoji = "🏆";
+                if (ach.icon === "Target") emoji = "🎯";
+                if (ach.icon === "ShieldCheck") emoji = "🛡️";
+                if (ach.icon === "Zap") emoji = "⚡";
+                if (ach.icon === "Flame") emoji = "🔥";
+                if (ach.icon === "BookOpen") emoji = "📖";
+
+                return (
+                  <motion.div 
+                    initial={{ scale: 0.5, y: 50, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20, delay: index * 0.2 }}
+                    key={ach.id} 
+                    className="bg-bg-card border-2 border-neon-gold/50 shadow-[0_0_30px_rgba(255,184,0,0.3)] p-6 rounded-3xl text-center space-y-3 relative overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-neon-gold/10 to-transparent pointer-events-none" />
+                    <motion.div 
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ repeat: Infinity, duration: 1.5 }}
+                      className="text-5xl"
+                    >
+                      {emoji}
+                    </motion.div>
+                    <h3 className="text-xl font-black text-neon-gold tracking-wider">
+                      ACHIEVEMENT UNLOCKED!
+                    </h3>
+                    <div className="bg-neon-gold/10 border border-neon-gold/20 py-2 px-4 rounded-xl inline-block font-extrabold text-sm text-neon-gold drop-shadow-[0_0_5px_rgba(255,184,0,0.8)]">
+                      {ach.name}
+                    </div>
+                    <p className="text-text-secondary text-xs leading-relaxed">
+                      {ach.description}
+                    </p>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

@@ -1,52 +1,81 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import api from "@/lib/api";
+
+interface LeaderboardEntry {
+  id: string;
+  userId: string;
+  ratingPoint: number;
+  tier: string;
+  rank: number;
+  username: string;
+  name: string;
+  avatarUrl: string | null;
+  isCurrentUser?: boolean;
+}
 
 export default function Home() {
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const res = await api.get("/leaderboard/global");
+        setEntries(res.data.slice(0, 3));
+      } catch (err) {
+        console.error("Gagal memuat papan peringkat pratinjau", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, []);
+
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between overflow-x-hidden">
+    <div className="min-h-screen bg-[#0B0F19] text-foreground flex flex-col justify-between overflow-x-hidden">
       {/* Header / Navbar */}
-      <header className="border-b border-card bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
-              MATH BATTLE ARENA
-            </span>
-          </div>
-          <nav className="hidden md:flex space-x-8 text-sm font-medium text-text-muted">
-            <Link href="/" className="text-foreground transition-colors">Home</Link>
-            <Link href="/leaderboard" className="hover:text-foreground transition-colors">Leaderboard</Link>
-          </nav>
-          <div className="flex items-center gap-4">
-            <Link 
-              href="/login" 
-              className="text-sm font-medium text-text-muted hover:text-foreground transition-colors"
-            >
-              Masuk
-            </Link>
-            <Link 
-              href="/register" 
-              className="px-4 h-10 flex items-center justify-center text-sm font-semibold rounded-lg bg-gradient-to-r from-primary to-secondary text-white hover:shadow-[0_0_15px_rgba(124,58,237,0.5)] transition-all"
-            >
-              Mulai Bermain
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Main Hero Section */}
       <main className="flex-grow">
         <section className="relative py-20 lg:py-32 overflow-hidden">
           {/* Background decorative glows */}
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl -z-10 animate-pulse"></div>
-          <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl -z-10 animate-pulse delay-75"></div>
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neon-blue/20 rounded-full blur-3xl -z-10 animate-pulse"></div>
+          <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-neon-purple/20 rounded-full blur-3xl -z-10 animate-[pulse_3s_infinite] delay-75"></div>
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            
+            {/* Inline Hero SVG Illustration */}
+            <div className="flex justify-center mb-10">
+              <svg width="160" height="160" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_15px_rgba(0,240,255,0.6)]">
+                {/* Outer rotating dashed ring */}
+                <circle cx="100" cy="100" r="90" fill="none" stroke="var(--color-neon-blue)" strokeWidth="2" strokeDasharray="15 10" className="origin-center animate-[spin_20s_linear_infinite]" />
+                {/* Inner rotating dashed ring */}
+                <circle cx="100" cy="100" r="70" fill="none" stroke="var(--color-neon-purple)" strokeWidth="3" strokeDasharray="30 15" className="origin-center animate-[spin_15s_linear_infinite_reverse]" />
+                {/* Pulsing diamond core */}
+                <path d="M100,45 L155,100 L100,155 L45,100 Z" fill="rgba(0,240,255,0.1)" stroke="var(--color-neon-gold)" strokeWidth="4" className="origin-center animate-pulse" />
+                {/* Math symbol */}
+                <text x="100" y="115" fontSize="48" fill="var(--color-text-primary)" textAnchor="middle" fontFamily="monospace" fontWeight="bold" className="drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">
+                  ∑
+                </text>
+              </svg>
+            </div>
+
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight">
               Belajar Matematika Seperti <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-secondary">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-gold drop-shadow-[0_0_10px_rgba(176,38,255,0.3)]">
                 Bertarung di Arena Game!
               </span>
             </h1>
-            <p className="mt-6 max-w-2xl mx-auto text-lg text-text-muted">
+            <p className="mt-6 max-w-2xl mx-auto text-lg text-text-secondary">
               Uji kecepatan berpikir dan logika matematika Anda. Hadapi lawan secara real-time, menangkan duel 1v1, dapatkan medali, dan capai peringkat tertinggi!
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
@@ -125,21 +154,64 @@ export default function Home() {
                 <span>Poin Rating</span>
               </div>
               <div className="divide-y divide-primary/5">
-                <div className="p-4 flex justify-between items-center">
-                  <span className="text-accent font-bold text-lg w-8">🥇 1</span>
-                  <span className="flex-1 text-left pl-8 font-medium">Raka_MathMaster</span>
-                  <span className="font-bold text-accent">2,450 XP</span>
-                </div>
-                <div className="p-4 flex justify-between items-center">
-                  <span className="text-gray-300 font-bold text-lg w-8">🥈 2</span>
-                  <span className="flex-1 text-left pl-8 font-medium">Sinta_Aritmetika</span>
-                  <span className="font-bold text-secondary">2,210 XP</span>
-                </div>
-                <div className="p-4 flex justify-between items-center">
-                  <span className="text-amber-600 font-bold text-lg w-8">🥉 3</span>
-                  <span className="flex-1 text-left pl-8 font-medium">Dimas_Logika</span>
-                  <span className="font-bold text-primary">2,080 XP</span>
-                </div>
+                {loading && (
+                  <div className="p-8 flex flex-col items-center justify-center text-text-muted gap-2">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    <span className="text-sm">Memuat data papan peringkat...</span>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="p-8 text-center text-red-400 text-sm">
+                    Gagal memuat data papan peringkat global.
+                  </div>
+                )}
+
+                {!loading && !error && entries.length === 0 && (
+                  <div className="p-8 text-center text-text-muted text-sm">
+                    Belum ada data ksatria matematika.
+                  </div>
+                )}
+
+                {!loading && !error && entries.map((entry) => {
+                  let medal = "";
+                  let rankColor = "text-text-muted";
+                  let pointsColor = "text-foreground";
+
+                  if (entry.rank === 1) {
+                    medal = "🥇";
+                    rankColor = "text-accent";
+                    pointsColor = "text-accent";
+                  } else if (entry.rank === 2) {
+                    medal = "🥈";
+                    rankColor = "text-gray-300";
+                    pointsColor = "text-secondary";
+                  } else if (entry.rank === 3) {
+                    medal = "🥉";
+                    rankColor = "text-amber-600";
+                    pointsColor = "text-primary";
+                  }
+
+                  return (
+                    <div key={entry.id || entry.userId} className="p-4 flex justify-between items-center hover:bg-card/20 transition-colors">
+                      <span className={`${rankColor} font-bold text-lg w-12 flex items-center gap-1`}>
+                        <span>{medal}</span>
+                        <span className="text-xs text-text-muted font-normal">#{entry.rank}</span>
+                      </span>
+                      <span className="flex-1 text-left pl-8 font-medium truncate">
+                        <Link 
+                          href={entry.isCurrentUser ? "/profile" : `/profile/${entry.username}`}
+                          className="hover:text-primary transition-colors"
+                        >
+                          @{entry.username}
+                        </Link>
+                      </span>
+                      <span className={`font-bold ${pointsColor}`}>
+                        {entry.ratingPoint} RP
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <div className="mt-8">

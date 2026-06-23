@@ -134,12 +134,33 @@ export default function DuelResultPage() {
 
         {/* HERO BANNER CARD */}
         <div className={`bg-gradient-to-br border rounded-3xl p-8 sm:p-12 shadow-2xl mb-8 text-center relative overflow-hidden ${outcome.colorClass}`}>
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl -z-10" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-neon-blue/5 rounded-full blur-3xl -z-10" />
 
-          {/* Outcome Badge */}
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-black tracking-widest bg-black/40 border border-slate-800 mb-6">
-            {outcome.badge}
-          </span>
+          {/* Animated Background SVG Splash */}
+          <div className="absolute inset-0 z-0 opacity-20 pointer-events-none flex items-center justify-center mix-blend-screen">
+            {isWin ? (
+              <svg width="400" height="400" viewBox="0 0 200 200" className="animate-[spin_30s_linear_infinite]">
+                <polygon points="100,10 120,70 190,70 135,110 155,180 100,140 45,180 65,110 10,70 80,70" fill="var(--color-neon-gold)" opacity="0.3" className="animate-pulse" />
+                <circle cx="100" cy="100" r="80" fill="none" stroke="var(--color-neon-green)" strokeWidth="4" strokeDasharray="20 10" className="origin-center animate-[spin_10s_linear_infinite_reverse]" />
+              </svg>
+            ) : isLose ? (
+              <svg width="400" height="400" viewBox="0 0 200 200" className="animate-pulse">
+                <path d="M50,50 L150,150 M150,50 L50,150" stroke="var(--color-neon-red)" strokeWidth="20" strokeLinecap="round" opacity="0.3" />
+                <circle cx="100" cy="100" r="80" fill="none" stroke="var(--color-neon-purple)" strokeWidth="4" strokeDasharray="30 15" className="origin-center animate-[spin_10s_linear_infinite]" />
+              </svg>
+            ) : (
+              <svg width="400" height="400" viewBox="0 0 200 200" className="animate-[spin_30s_linear_infinite]">
+                <rect x="50" y="50" width="100" height="100" fill="none" stroke="var(--color-text-secondary)" strokeWidth="4" transform="rotate(45 100 100)" opacity="0.3" />
+                <circle cx="100" cy="100" r="70" fill="none" stroke="var(--color-neon-blue)" strokeWidth="4" strokeDasharray="10 20" />
+              </svg>
+            )}
+          </div>
+
+          <div className="relative z-10">
+            {/* Outcome Badge */}
+            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-black tracking-widest bg-black/40 border border-slate-800 mb-6">
+              {outcome.badge}
+            </span>
           
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white mb-2">
             {outcome.title}
@@ -154,6 +175,7 @@ export default function DuelResultPage() {
             <span className={`text-3xl sm:text-4xl font-black mt-1 ${outcome.ratingColor}`}>
               {outcome.ratingText}
             </span>
+          </div>
           </div>
         </div>
 

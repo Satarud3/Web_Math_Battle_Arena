@@ -107,7 +107,7 @@ export default function DuelSetupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white py-12 px-4 sm:px-6 lg:px-8 flex flex-col justify-between">
+    <div className="min-h-screen bg-bg-main text-text-primary py-12 px-4 sm:px-6 lg:px-8 flex flex-col justify-between">
       <div className="max-w-2xl mx-auto w-full flex-grow flex flex-col justify-center">
         {/* Back Link */}
         <div className="mb-8">
@@ -145,23 +145,37 @@ export default function DuelSetupPage() {
           {/* Interactive Radar Arena Status */}
           <div className="my-8 relative flex items-center justify-center w-56 h-56">
             {status === "WAITING" && (
-              <>
-                {/* Rotating/pulsing Radar rings */}
-                <div className="absolute inset-0 border border-blue-500/25 rounded-full animate-ping duration-1000 opacity-60" />
-                <div className="absolute inset-4 border border-indigo-500/20 rounded-full animate-ping duration-1000 delay-300 opacity-40" />
-                <div className="absolute inset-10 border border-purple-500/10 rounded-full animate-ping duration-1000 delay-600 opacity-20" />
+              <svg className="absolute inset-0 w-full h-full drop-shadow-[0_0_15px_rgba(0,240,255,0.4)]" viewBox="0 0 200 200">
+                {/* Static Rings */}
+                <circle cx="100" cy="100" r="90" fill="none" stroke="var(--color-neon-blue)" strokeWidth="1" strokeOpacity="0.3" />
+                <circle cx="100" cy="100" r="60" fill="none" stroke="var(--color-neon-blue)" strokeWidth="1" strokeOpacity="0.3" />
+                <circle cx="100" cy="100" r="30" fill="none" stroke="var(--color-neon-blue)" strokeWidth="1" strokeOpacity="0.3" />
                 
-                {/* Scanning line animation */}
-                <div className="absolute inset-0 border border-blue-500/10 rounded-full" />
-                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500/0 via-blue-500/5 to-blue-500/15 animate-spin duration-3000" />
-              </>
+                {/* Crosshairs */}
+                <path d="M100,10 L100,190 M10,100 L190,100" stroke="var(--color-neon-blue)" strokeWidth="1" strokeOpacity="0.4" />
+
+                {/* Sweeping Radar Beam */}
+                <path d="M100,100 L100,10 A90,90 0 0,1 190,100 Z" fill="url(#radar-gradient)" className="origin-center animate-[spin_2s_linear_infinite]" />
+
+                {/* Blinking Targets */}
+                <circle cx="150" cy="60" r="3" fill="var(--color-neon-red)" className="animate-ping" />
+                <circle cx="60" cy="140" r="2" fill="var(--color-neon-gold)" className="animate-pulse" />
+
+                {/* Radar Gradient Def */}
+                <defs>
+                  <linearGradient id="radar-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="var(--color-neon-blue)" stopOpacity="0.6" />
+                    <stop offset="100%" stopColor="var(--color-neon-blue)" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+              </svg>
             )}
 
             {/* Center Visual */}
             <div className={`relative w-36 h-36 rounded-full flex flex-col justify-center items-center border transition-all duration-300 shadow-2xl ${
               status === "WAITING" 
-                ? "bg-indigo-950/40 border-indigo-500/50 shadow-indigo-500/10" 
-                : "bg-slate-900 border-slate-800"
+                ? "bg-bg-card/80 border-neon-blue/50 shadow-[0_0_20px_rgba(0,240,255,0.2)]" 
+                : "bg-bg-card border-slate-800"
             }`}>
               {opponent ? (
                 <>

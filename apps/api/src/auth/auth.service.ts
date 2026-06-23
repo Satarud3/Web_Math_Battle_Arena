@@ -6,6 +6,8 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { RoleName } from '@prisma/client';
 
+import { getTier } from '../common/utils/tier';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -63,7 +65,7 @@ export class AuthService {
         data: {
           userId: user.id,
           ratingPoint: 1000,
-          tier: 'Bronze',
+          tier: getTier(1000),
         },
       });
 

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StartPracticeDto } from './dto/start-practice.dto';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { Difficulty, MatchMode, MatchStatus } from '@prisma/client';
+import { AchievementsService } from '../achievements/achievements.service';
 
 function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
@@ -15,7 +16,10 @@ function shuffleArray<T>(array: T[]): T[] {
 
 @Injectable()
 export class PracticeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly achievementsService: AchievementsService,
+  ) {}
 
   async startPractice(userId: string, dto: StartPracticeDto) {
     const whereClause: any = { isActive: true };
@@ -292,12 +296,18 @@ export class PracticeService {
       return newAnswer;
     });
 
+    let unlockedAchievements: any[] = [];
+    if (isLastQuestion) {
+      unlockedAchievements = await this.achievementsService.evaluateMatchAchievements(userId, matchId);
+    }
+
     return {
       isCorrect,
       correctAnswer: question.correctAnswer,
       explanation: question.explanation || '',
       scoreEarned,
       isLastQuestion,
+      unlockedAchievements,
     };
   }
 

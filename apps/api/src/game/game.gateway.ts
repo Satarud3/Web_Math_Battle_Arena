@@ -15,9 +15,14 @@ import { RoomService } from './room.service';
 import * as cookie from 'cookie';
 import { Inject, forwardRef } from '@nestjs/common';
 
+const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 @WebSocketGateway({
   cors: {
-    origin: 'http://localhost:3000',
+    origin: allowedOrigins,
     credentials: true,
   },
 })

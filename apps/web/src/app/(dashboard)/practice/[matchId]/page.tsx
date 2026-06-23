@@ -19,6 +19,7 @@ interface Feedback {
   explanation: string;
   scoreEarned: number;
   isLastQuestion: boolean;
+  unlockedAchievements?: any[];
 }
 
 export default function PracticePlayPage() {
@@ -37,6 +38,7 @@ export default function PracticePlayPage() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<any[]>([]);
 
   // Timer State
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -115,7 +117,16 @@ export default function PracticePlayPage() {
 
   const handleNextQuestion = () => {
     if (feedback?.isLastQuestion) {
-      router.push(`/practice/${matchId}/result`);
+      const myAchievements = feedback.unlockedAchievements || [];
+      if (myAchievements.length > 0) {
+        setUnlockedAchievements(myAchievements);
+        // Delay redirect to allow reading
+        setTimeout(() => {
+          router.push(`/practice/${matchId}/result`);
+        }, 5000);
+      } else {
+        router.push(`/practice/${matchId}/result`);
+      }
     } else {
       fetchCurrentQuestion();
     }
@@ -348,6 +359,41 @@ export default function PracticePlayPage() {
         </div>
 
       </div>
+
+      {/* Real-time Achievement Unlock Alert Popup Overlay */}
+      {unlockedAchievements.length > 0 && (
+        <div className="fixed inset-0 bg-[#0B0F19]/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="space-y-4 max-w-sm w-full">
+            {unlockedAchievements.map((ach) => {
+              let emoji = "🏆";
+              if (ach.icon === "Target") emoji = "🎯";
+              if (ach.icon === "ShieldCheck") emoji = "🛡️";
+              if (ach.icon === "Zap") emoji = "⚡";
+              if (ach.icon === "Flame") emoji = "🔥";
+              if (ach.icon === "BookOpen") emoji = "📖";
+
+              return (
+                <div 
+                  key={ach.id} 
+                  className="bg-slate-900 border-2 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.3)] p-6 rounded-3xl text-center space-y-3 transform scale-100 transition-transform duration-300 animate-bounce"
+                >
+                  <div className="text-5xl animate-pulse">{emoji}</div>
+                  <h3 className="text-xl font-black text-yellow-400 tracking-wider">
+                    ACHIEVEMENT UNLOCKED!
+                  </h3>
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 py-2 px-4 rounded-xl inline-block font-extrabold text-sm text-yellow-300">
+                    {ach.name}
+                  </div>
+                  <p className="text-slate-400 text-xs leading-relaxed">
+                    {ach.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
