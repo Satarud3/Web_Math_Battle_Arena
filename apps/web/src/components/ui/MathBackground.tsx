@@ -1,5 +1,5 @@
 export default function MathBackground() {
-  const equations = ["SIGMA", "pi", "f(x)", "dx", "root", "A/B", "x+y", "2n"];
+const equations = ["Σ", "π", "∫", "Δ", "√x", "f(x)", "dx", "A/B", "x+y", "2n"];
 
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-bg-main">

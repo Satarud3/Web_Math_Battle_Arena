@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { 
   FolderPlus, Edit, Trash2, ShieldAlert, Plus, 
-  X, CheckCircle, AlertTriangle, RefreshCw
+  X, CheckCircle, AlertTriangle, RefreshCw, Search, ArrowDownUp
 } from "lucide-react";
 import api from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/errors";
@@ -26,6 +26,8 @@ export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"name" | "questions">("name");
   
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -141,6 +143,12 @@ export default function AdminCategoriesPage() {
     }
   };
 
+  const filteredCategories = categories
+    .filter((category) => `${category.name} ${category.description || ""}`.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((first, second) => sortOrder === "questions"
+      ? second._count.questions - first._count.questions
+      : first.name.localeCompare(second.name, "id"));
+
   return (
     <div className="p-6 sm:p-8 flex flex-col gap-6">
         
@@ -186,6 +194,22 @@ export default function AdminCategoriesPage() {
           </div>
         )}
 
+        <div className="grid gap-3 rounded-xl border border-slate-800 bg-[#0E131F] p-4 sm:grid-cols-[1fr_190px]">
+          <label className="relative">
+            <span className="sr-only">Cari kategori</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari nama atau deskripsi kategori..." className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#131A26] py-2.5 pl-10 pr-4 text-xs text-white outline-none transition focus:border-indigo-500" />
+          </label>
+          <label className="relative">
+            <span className="sr-only">Urutkan kategori</span>
+            <ArrowDownUp className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as "name" | "questions")} className="min-h-11 w-full appearance-none rounded-lg border border-slate-700 bg-[#131A26] py-2.5 pl-10 pr-4 text-xs font-semibold text-white outline-none transition focus:border-indigo-500">
+              <option value="name">Urutkan: Nama</option>
+              <option value="questions">Urutkan: Jumlah Soal</option>
+            </select>
+          </label>
+        </div>
+
         {/* Table / Loader */}
         <div className="bg-[#0E131F] border border-slate-800 rounded-xl overflow-hidden shadow-xl">
           {loading ? (
@@ -197,11 +221,11 @@ export default function AdminCategoriesPage() {
                 ))}
               </div>
             </div>
-          ) : categories.length === 0 ? (
+          ) : filteredCategories.length === 0 ? (
             <div className="p-12 text-center text-slate-500 text-xs flex flex-col items-center justify-center">
               <FolderPlus className="mb-2 h-9 w-9 text-slate-500" aria-hidden="true" />
-              <h4 className="font-bold text-white">Kategori Kosong</h4>
-              <p className="mt-1">Belum ada kategori yang dibuat. Klik tombol di atas untuk menambah.</p>
+              <h4 className="font-bold text-white">Kategori Tidak Ditemukan</h4>
+              <p className="mt-1">Ubah kata kunci atau tambah kategori baru.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -215,7 +239,7 @@ export default function AdminCategoriesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-850 text-slate-300">
-                  {categories.map((cat) => (
+                  {filteredCategories.map((cat) => (
                     <tr key={cat.id} className="hover:bg-[#121927]/30 transition-colors">
                       <td className="py-4 px-4 font-bold text-white text-sm">{cat.name}</td>
                       <td className="py-4 px-4 text-slate-400 line-clamp-2 mt-1 block border-none">{cat.description || "-"}</td>
@@ -228,6 +252,7 @@ export default function AdminCategoriesPage() {
                         <div className="flex justify-end gap-2">
                           <button 
                             onClick={() => openEditModal(cat)}
+                            aria-label={`Edit kategori ${cat.name}`}
                             className="p-1.5 bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-blue-300 rounded transition-colors cursor-pointer"
                             title="Edit Kategori"
                           >
@@ -235,6 +260,7 @@ export default function AdminCategoriesPage() {
                           </button>
                           <button 
                             onClick={() => handleDeleteClick(cat)}
+                            aria-label={`Hapus kategori ${cat.name}`}
                             className="p-1.5 bg-slate-800 hover:bg-slate-700 text-red-400 hover:text-red-300 rounded transition-colors cursor-pointer"
                             title="Hapus Kategori"
                           >

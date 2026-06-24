@@ -3,8 +3,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Swords, Loader2, XCircle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Swords, Loader2, XCircle, ShieldAlert, Crosshair, BrainCircuit, ScanLine } from "lucide-react";
 import { socket } from "@/lib/socket";
+import { useAuthStore } from "@/store/authStore";
 
 type QueueStatus = "IDLE" | "JOINING" | "WAITING" | "ERROR";
 
@@ -16,8 +17,10 @@ interface DuelOpponent {
 
 export default function DuelSetupPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [status, setStatus] = useState<QueueStatus>("IDLE");
   const [opponent, setOpponent] = useState<DuelOpponent | null>(null);
+  const [ratingPoint, setRatingPoint] = useState<number | null>(null);
   const [queueTime, setQueueTime] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
@@ -39,7 +42,8 @@ export default function DuelSetupPage() {
       setStatus("IDLE");
     };
 
-    const onQueueJoined = () => {
+    const onQueueJoined = (data: { ratingPoint?: number }) => {
+      setRatingPoint(data.ratingPoint ?? null);
       setStatus("WAITING");
       // Start elapsed timer
       setQueueTime(0);
@@ -60,7 +64,7 @@ export default function DuelSetupPage() {
       // Wait briefly for transition effect
       setTimeout(() => {
         router.push(`/arena/${data.matchId}`);
-      }, 1500);
+      }, 3000);
     };
 
     const onMatchError = (data: { message: string }) => {
@@ -103,6 +107,14 @@ export default function DuelSetupPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const matchmakingRange = ratingPoint ? Math.min(250, 50 + Math.floor(queueTime / 8) * 25) : 100;
+  const queueTips = [
+    "Jawaban cepat tetap butuh verifikasi satu langkah terakhir.",
+    "Gunakan eliminasi opsi saat bentuk persamaan terasa asing.",
+    "Tempo stabil lebih kuat daripada jawaban terburu-buru.",
+  ];
+  const queueTip = queueTips[Math.floor(queueTime / 8) % queueTips.length];
+
   return (
     <div className="min-h-screen bg-bg-main text-text-primary py-12 px-4 sm:px-6 lg:px-8 flex flex-col justify-between">
       <div className="max-w-2xl mx-auto w-full flex-grow flex flex-col justify-center">
@@ -130,6 +142,20 @@ export default function DuelSetupPage() {
             <p className="text-slate-400 mt-2 text-xs sm:text-sm max-w-md mx-auto">
               Tandingi ksatria matematika lain secara real-time. Menang menambah +25 RP, kalah mengurangi -20 RP.
             </p>
+          </div>
+
+          <div className="mt-5 grid w-full max-w-md grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-border-soft bg-bg-glass p-3 text-left">
+            <div className="grid h-10 w-10 place-items-center rounded-xl border border-neon-blue/30 bg-neon-blue/10 text-sm font-black text-neon-blue">
+              {(user?.username || "C").slice(0, 1).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black text-white">@{user?.username || "challenger"}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ranked challenger</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-black text-neon-cyan">{ratingPoint ?? "--"} RP</p>
+              <p className="text-[10px] font-bold text-slate-500">Current MMR</p>
+            </div>
           </div>
 
           {errorMsg && (
@@ -203,6 +229,19 @@ export default function DuelSetupPage() {
             </div>
           </div>
 
+          {status === "WAITING" && !opponent && (
+            <div className="w-full max-w-md rounded-2xl border border-neon-blue/20 bg-neon-blue/5 p-4 text-left">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-xs font-bold text-neon-cyan"><Crosshair className="h-4 w-4" aria-hidden="true" /> Matchmaking range</span>
+                <span className="text-xs font-black text-white">{ratingPoint ? `${ratingPoint - matchmakingRange} - ${ratingPoint + matchmakingRange} RP` : "Mengkalibrasi MMR"}</span>
+              </div>
+              <div className="mt-3 flex items-start gap-2 border-t border-neon-blue/10 pt-3 text-xs leading-relaxed text-slate-300">
+                <BrainCircuit className="mt-0.5 h-4 w-4 shrink-0 text-neon-cyan" aria-hidden="true" />
+                <span>{queueTip}</span>
+              </div>
+            </div>
+          )}
+
           {/* Action Button */}
           <div className="w-full max-w-sm">
             {status === "IDLE" && (
@@ -240,6 +279,20 @@ export default function DuelSetupPage() {
           </div>
         </div>
       </div>
+      {opponent && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-bg-deep/95 px-4 text-center backdrop-blur-md">
+          <div className="w-full max-w-lg rounded-3xl border border-neon-cyan/30 bg-bg-card p-8 shadow-[0_0_60px_rgba(6,182,212,0.2)]">
+            <ScanLine className="mx-auto h-10 w-10 animate-pulse text-neon-cyan" aria-hidden="true" />
+            <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-neon-cyan">Match Found</p>
+            <h2 className="mt-3 text-3xl font-black text-white">@{opponent.username}</h2>
+            <p className="mt-2 text-sm text-slate-400">{opponent.ratingPoint} RP sedang memasuki arena.</p>
+            <div className="mt-6 flex items-center justify-center gap-3 text-xs font-bold uppercase tracking-wider text-slate-300">
+              <Swords className="h-4 w-4 text-neon-pink" aria-hidden="true" />
+              Battle intro in progress
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

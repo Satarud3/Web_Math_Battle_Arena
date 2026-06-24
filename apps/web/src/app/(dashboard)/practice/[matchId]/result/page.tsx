@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { Home, Play, CheckCircle2, XCircle, Clock, Target, Award, BookOpen, ChevronDown, ChevronUp, Trophy, ThumbsUp, Dumbbell } from "lucide-react";
+import { Home, Play, CheckCircle2, XCircle, Clock, Target, Award, BookOpen, ChevronDown, ChevronUp, Trophy, ThumbsUp, Dumbbell, Bot, RotateCcw, Sparkles } from "lucide-react";
 import api from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/errors";
 
@@ -94,13 +94,21 @@ export default function PracticeResultPage() {
   }
 
   const performanceFeedback = () => {
-    if (result.accuracy >= 80) return { title: "Luar Biasa!", desc: "Kamu sangat menguasai materi ini! Pertahankan prestasimu.", icon: Trophy };
-    if (result.accuracy >= 60) return { title: "Kerja Bagus!", desc: "Akurasi yang solid. Sedikit latihan lagi untuk meraih nilai sempurna.", icon: ThumbsUp };
-    return { title: "Tetap Semangat!", desc: "Belajar dari kesalahan di pembahasan di bawah dan coba lagi.", icon: Dumbbell };
+    if (result.accuracy >= 90) return { title: "Legendary Focus!", desc: "Konsentrasi dan ketepatanmu berada pada level arena elite.", icon: Trophy };
+    if (result.accuracy >= 70) return { title: "Great Run!", desc: "Fondasinya sudah kuat. Pertahankan tempo untuk naik level.", icon: ThumbsUp };
+    if (result.accuracy >= 50) return { title: "Good Progress!", desc: "Kamu menemukan pijakan yang baik. Ulangi konsep yang masih meleset.", icon: Sparkles };
+    return { title: "Training Needed", desc: "Tidak masalah. Gunakan pembahasan di bawah untuk membangun pola yang lebih kuat.", icon: Dumbbell };
   };
 
   const feedbackInfo = performanceFeedback();
   const FeedbackIcon = feedbackInfo.icon;
+  const wrongQuestions = result.questions.filter((question) => !question.isCorrect);
+  const fastestQuestion = result.questions.reduce<QuestionResult | null>((fastest, question) => !fastest || question.answerTimeMs < fastest.answerTimeMs ? question : fastest, null);
+  const coachSummary = result.accuracy >= 80
+    ? "Akurasi sudah kuat. Naikkan kesulitan atau kurangi waktu berpikir untuk mendorong rank berikutnya."
+    : result.accuracy >= 50
+      ? "Kamu memahami sebagian besar pola. Fokus pada pembahasan soal yang salah sebelum kembali ke duel."
+      : "Mulai dari ritme yang lebih pelan. Prioritaskan konsep dan ketelitian, lalu tingkatkan kecepatan secara bertahap.";
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white py-12 px-4 sm:px-6 lg:px-8">
@@ -147,6 +155,49 @@ export default function PracticeResultPage() {
             </div>
           </div>
         </div>
+
+        <section className="mb-10 grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+          <div className="rounded-2xl border border-neon-cyan/20 bg-neon-cyan/5 p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl border border-neon-cyan/20 bg-neon-cyan/10 text-neon-cyan">
+                <Bot className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-cyan">AI Coach Summary</p>
+                <h2 className="mt-1 text-lg font-black text-white">Rangkuman sesi</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-300">{coachSummary}</p>
+              </div>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-xl border border-border-soft bg-bg-card/60 p-3">
+                <p className="font-bold text-neon-green">Kekuatan</p>
+                <p className="mt-1 text-slate-300">{result.accuracy >= 70 ? "Konsistensi jawaban" : "Keberanian mencoba"}</p>
+              </div>
+              <div className="rounded-xl border border-border-soft bg-bg-card/60 p-3">
+                <p className="font-bold text-neon-pink">Fokus latihan</p>
+                <p className="mt-1 text-slate-300">{wrongQuestions.length ? `${wrongQuestions.length} soal perlu diulang` : "Naikkan kesulitan"}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border-soft bg-bg-card/70 p-5 sm:p-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-gold">Performance Signal</p>
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-400">Soal tersulit hari ini</span>
+                <span className="text-sm font-black text-white">{wrongQuestions.length || 0} perlu review</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-400">Respon tercepat</span>
+                <span className="text-sm font-black text-white">{fastestQuestion ? formatDuration(fastestQuestion.answerTimeMs) : "--"}</span>
+              </div>
+              <button onClick={() => router.push("/practice")} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-neon-gold/30 bg-neon-gold/10 px-4 text-sm font-bold text-neon-gold transition hover:bg-neon-gold/20">
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                Latih Ulang Soal Salah
+              </button>
+            </div>
+          </div>
+        </section>
 
         {/* Action Controls */}
         <div className="flex flex-col sm:flex-row gap-4 mb-10">

@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
   LayoutDashboard, Users, BookOpenCheck, History, LogOut, 
-  FolderPlus, Star, Sigma
+  FolderPlus, Star, Sigma, Menu
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -14,6 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -37,9 +38,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-[#080B11] text-slate-100 flex flex-col md:flex-row font-sans">
+      <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b border-slate-800 bg-[#0E131F]/95 px-4 backdrop-blur md:hidden">
+        <div className="flex items-center gap-2 text-sm font-black text-white">
+          <Sigma className="h-5 w-5 text-neon-cyan" aria-hidden="true" />
+          MBA ADMIN
+        </div>
+        <button onClick={() => setMobileMenuOpen(true)} aria-label="Buka navigasi admin" className="grid h-10 w-10 place-items-center rounded-lg border border-slate-700 text-slate-200 transition hover:border-neon-cyan/40 hover:text-neon-cyan">
+          <Menu className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </header>
+      {mobileMenuOpen && <button type="button" aria-label="Tutup navigasi admin" onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 z-40 bg-black/60 md:hidden" />}
       
       {/* Shared Admin Sidebar */}
-      <aside className="w-full md:w-64 bg-[#0E131F] border-b md:border-b-0 md:border-r border-slate-800 flex flex-col shrink-0">
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800 bg-[#0E131F] shadow-2xl transition-transform duration-200 md:static md:w-64 md:translate-x-0 md:shadow-none ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <Sigma className="h-6 w-6 text-neon-cyan" aria-hidden="true" />
           <span className="text-xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">MBA ADMIN</span>
@@ -73,6 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all ${
                   isActive
                     ? "bg-[#1E1B4B] text-indigo-400 border-indigo-500/20"
@@ -98,7 +110,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <button 
-            onClick={handleLogout}
+            onClick={() => {
+              setMobileMenuOpen(false);
+              void handleLogout();
+            }}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-red-500/20 text-red-400 text-xs font-bold hover:bg-red-500/10 transition-all cursor-pointer bg-transparent"
           >
             <LogOut size={14} />

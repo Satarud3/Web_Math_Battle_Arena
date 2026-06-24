@@ -137,6 +137,21 @@ export default function PracticePlayPage() {
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
+
+      const optionKey = event.key.toUpperCase();
+      if (!feedback && question?.options[optionKey] && !submitting) {
+        setSelectedOption(optionKey);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [feedback, question, submitting]);
+
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
@@ -331,9 +346,14 @@ export default function PracticePlayPage() {
                     <BookOpen className="w-4 h-4 text-indigo-400" />
                     Pembahasan & Penjelasan:
                   </h5>
-                  <p className="text-slate-400 text-sm leading-relaxed whitespace-pre-wrap">
-                    {feedback.explanation}
-                  </p>
+              <p className="text-slate-400 text-sm leading-relaxed whitespace-pre-wrap">
+                {feedback.explanation}
+              </p>
+              <div className="mt-4 grid gap-2 border-t border-slate-800 pt-4 text-xs text-slate-400 sm:grid-cols-3">
+                <span><strong className="text-slate-200">Konsep:</strong> Perhatikan pola pada soal sebelum memilih opsi.</span>
+                <span><strong className="text-slate-200">Jawaban:</strong> Opsi {feedback.correctAnswer} adalah hasil yang benar.</span>
+                <span><strong className="text-slate-200">Tips cepat:</strong> Periksa kembali operasi terakhir sebelum mengunci jawaban.</span>
+              </div>
                 </div>
               )}
 

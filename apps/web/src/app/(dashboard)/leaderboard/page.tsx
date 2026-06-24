@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trophy, Medal, ShieldAlert, Loader2, Search } from "lucide-react";
+import { Trophy, Medal, ShieldAlert, Loader2, Search, CalendarDays, Globe2, UsersRound } from "lucide-react";
 import api from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import MathBackground from "@/components/ui/MathBackground";
@@ -24,6 +24,8 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [season, setSeason] = useState("Season 01");
+  const [scope, setScope] = useState("Global");
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -106,6 +108,24 @@ export default function LeaderboardPage() {
           <p className="text-slate-400 mt-3 text-sm sm:text-base max-w-md mx-auto leading-relaxed">
             Daftar petarung dengan kecerdasan matematika tertinggi di Math Battle Arena.
           </p>
+        </div>
+
+        <div className="mb-8 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border-soft bg-bg-glass p-4">
+            <UsersRound className="h-4 w-4 text-neon-cyan" aria-hidden="true" />
+            <p className="mt-2 text-2xl font-black text-white">{entries.length}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Ranked challengers</p>
+          </div>
+          <div className="rounded-xl border border-border-soft bg-bg-glass p-4">
+            <Trophy className="h-4 w-4 text-neon-gold" aria-hidden="true" />
+            <p className="mt-2 text-2xl font-black text-white">{entries[0]?.ratingPoint || "--"}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current top rating</p>
+          </div>
+          <div className="rounded-xl border border-border-soft bg-bg-glass p-4">
+            <CalendarDays className="h-4 w-4 text-neon-purple" aria-hidden="true" />
+            <p className="mt-2 text-2xl font-black text-white">{season}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Competitive season</p>
+          </div>
         </div>
 
         {error && (
@@ -218,18 +238,37 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {/* Search Bar */}
-        <div className="max-w-md mx-auto mb-8 relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-slate-500" />
+        {/* Search and context filters */}
+        <div className="mb-8 grid gap-3 lg:grid-cols-[1fr_180px_180px]">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-slate-500" />
+            </div>
+            <input
+              type="text"
+              aria-label="Cari pemain leaderboard"
+              placeholder="Cari nama ksatria..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full min-h-11 pl-11 pr-4 py-3 border border-slate-800 bg-[#0E1524]/60 backdrop-blur rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-neon-blue/40 focus:border-neon-blue/50 transition-all text-sm"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Cari nama ksatria..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-11 pr-4 py-3 border border-slate-800 bg-[#0E1524]/60 backdrop-blur rounded-2xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-neon-blue/40 focus:border-neon-blue/50 transition-all text-sm"
-          />
+          <label className="relative">
+            <span className="sr-only">Musim leaderboard</span>
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <select value={season} onChange={(event) => setSeason(event.target.value)} className="min-h-11 w-full appearance-none rounded-xl border border-slate-800 bg-[#0E1524]/60 py-3 pl-10 pr-4 text-sm font-semibold text-slate-200 outline-none transition focus:border-neon-blue/50">
+              <option>Season 01</option>
+              <option>All Time</option>
+            </select>
+          </label>
+          <label className="relative">
+            <span className="sr-only">Cakupan leaderboard</span>
+            <Globe2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <select value={scope} onChange={(event) => setScope(event.target.value)} className="min-h-11 w-full appearance-none rounded-xl border border-slate-800 bg-[#0E1524]/60 py-3 pl-10 pr-4 text-sm font-semibold text-slate-200 outline-none transition focus:border-neon-blue/50">
+              <option>Global</option>
+              <option>Indonesia</option>
+            </select>
+          </label>
         </div>
 
         {/* Leaderboard Table */}
@@ -248,18 +287,13 @@ export default function LeaderboardPage() {
                 {filteredEntries.map((entry) => {
                   const isPodium = entry.rank <= 3;
                   const rowHighlightClass = entry.isCurrentUser
-                    ? "bg-neon-blue/10 border-y border-neon-blue/30 shadow-[inset_0_0_15px_rgba(0,240,255,0.1)] relative"
+                    ? "bg-neon-blue/10 border-y border-l-2 border-neon-blue/30 shadow-[inset_0_0_15px_rgba(0,240,255,0.1)]"
                     : isPodium
                     ? "bg-slate-900/20 hover:bg-slate-900/40 transition-colors"
                     : "hover:bg-slate-900/30 transition-colors";
 
                   return (
                     <tr key={entry.id || entry.userId} className={`${rowHighlightClass}`}>
-                      {/* Pinned user vertical indicator */}
-                      {entry.isCurrentUser && (
-                        <td className="absolute left-0 top-0 bottom-0 w-1 bg-neon-blue" />
-                      )}
-
                       {/* Rank Column */}
                       <td className="py-4 px-6 text-center font-bold">
                         <div className="flex items-center justify-center">

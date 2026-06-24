@@ -107,6 +107,15 @@ export default function AchievementGrid() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {achievements.length === 0 && (
+          <div className="col-span-full grid min-h-40 place-items-center rounded-2xl border border-dashed border-slate-700 bg-bg-card/40 p-6 text-center">
+            <div>
+              <Award className="mx-auto h-8 w-8 text-slate-600" aria-hidden="true" />
+              <p className="mt-3 text-sm font-bold text-slate-300">Belum ada pencapaian untuk ditampilkan.</p>
+              <p className="mt-1 text-xs text-slate-500">Selesaikan latihan atau duel untuk mulai membuka medali.</p>
+            </div>
+          </div>
+        )}
         {achievements.map((ach) => {
           const IconComponent = IconMapper[ach.icon] || Award;
           const style = GlowMapper[ach.icon] || {
@@ -131,6 +140,10 @@ export default function AchievementGrid() {
                     <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                   </div>
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">{ach.description}</p>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                    <div className="h-full w-0 rounded-full bg-slate-500" />
+                  </div>
+                  <p className="mt-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Terkunci</p>
                 </div>
               </div>
             );
@@ -152,6 +165,9 @@ export default function AchievementGrid() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 mt-1 leading-relaxed">{ach.description}</p>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/30">
+                  <div className={`h-full w-full rounded-full ${style.bg}`} />
+                </div>
                 <div className="text-[9px] text-slate-500 mt-3 font-semibold">
                   Didapatkan pada:{" "}
                   {new Date(ach.unlockedAt!).toLocaleDateString("id-ID", {

@@ -4,8 +4,8 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
-  Trophy, Activity, Play, Swords, Award, Clock, Target, ShieldAlert, Sparkles, History,
-  Brain, RadioTower, Lock, Medal, Flame
+  Activity, Play, Swords, Award, Clock, Target, ShieldAlert, Sparkles,
+  Brain, RadioTower, Lock, Medal, Flame, Bot, CircleCheckBig, ChevronRight, Gauge, Timer
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -84,6 +84,12 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [ranking, setRanking] = useState<Ranking | null>(null);
   const [recentMatches, setRecentMatches] = useState<MatchRecord[]>([]);
+
+  const answeredToday = Math.min(10, stats?.totalQuestionsAnswered || 0);
+  const questAccuracy = Math.min(100, Math.round(Number(stats?.accuracy || 0)));
+  const recentResponseTime = recentMatches.length
+    ? Math.round(recentMatches.reduce((total, match) => total + Number(match.avgAnswerTime || 0), 0) / recentMatches.length)
+    : 0;
 
   // Fetch all player data on mount
   useEffect(() => {
@@ -200,19 +206,12 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
-              {/* Rank Points Card */}
-              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }} className="p-5 bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-xl flex flex-col justify-between hover:border-neon-blue/30 hover:shadow-[0_0_15px_rgba(0,240,255,0.08)] transition-all">
-                <span className="text-xs uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Trophy size={14} className="text-amber-400 animate-pulse" />
-                  Peringkat Tier
-                </span>
-                <div className="my-2">
-                  <RankBadge
-                    tier={ranking?.tier || "Bronze"}
-                    ratingPoint={ranking?.ratingPoint || 1000}
-                  />
-                </div>
-                <span className="text-[10px] text-indigo-400 font-medium">Rank Global: #{ranking?.currentRank || "-"}</span>
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <RankBadge
+                  tier={ranking?.tier || "Bronze"}
+                  ratingPoint={ranking?.ratingPoint || 1000}
+                  globalRank={ranking?.currentRank}
+                />
               </motion.div>
 
               {/* Win Rate Card */}
@@ -246,23 +245,72 @@ export default function DashboardPage() {
                 <span className="text-[10px] text-slate-500">Total {stats?.totalQuestionsAnswered || 0} Soal</span>
               </motion.div>
 
-              {/* Total Matches Card */}
+              {/* Tempo Card */}
               <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }} className="p-5 bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-xl flex flex-col justify-between hover:border-neon-blue/30 hover:shadow-[0_0_15px_rgba(0,240,255,0.08)] transition-all">
                 <span className="text-xs uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <History size={14} className="text-emerald-400" />
-                  Total Match
+                  <Timer size={14} className="text-emerald-400" />
+                  Tempo Rata-rata
                 </span>
                 <div className="my-2">
                   <div className="text-2xl sm:text-3xl font-black text-white">
-                    {stats?.totalMatches || 0}
+                    {recentResponseTime ? `${recentResponseTime}s` : "--"}
                   </div>
-                  <span className="text-xs text-slate-400 font-semibold">Pertandingan Dimainkan</span>
+                  <span className="text-xs text-slate-400 font-semibold">Kecepatan dari match terbaru</span>
                 </div>
-                <span className="text-[10px] text-slate-500">Duel & Latihan</span>
+                <span className="text-[10px] text-slate-500">{stats?.totalMatches || 0} duel dan sesi tercatat</span>
               </motion.div>
             </>
           )}
         </motion.div>
+
+        <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_1fr]">
+          <div className="glass-panel rounded-2xl border border-border-soft p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-gold">Daily Quest</p>
+                <h2 className="mt-1 text-lg font-black text-white">Misi latihan hari ini</h2>
+              </div>
+              <Gauge className="h-5 w-5 text-neon-gold" aria-hidden="true" />
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              {[
+                { label: "Selesaikan soal", value: answeredToday, target: 10, color: "bg-neon-cyan" },
+                { label: "Mainkan satu duel", value: stats?.totalMatches ? 1 : 0, target: 1, color: "bg-neon-purple" },
+                { label: "Raih akurasi", value: questAccuracy, target: 80, color: "bg-neon-green" },
+              ].map((quest) => (
+                <div key={quest.label} className="rounded-xl border border-border-soft bg-bg-card/60 p-4">
+                  <div className="flex items-center justify-between gap-2 text-xs font-bold text-slate-200">
+                    <span>{quest.label}</span>
+                    {quest.value >= quest.target && <CircleCheckBig className="h-4 w-4 text-neon-green" aria-label="Quest complete" />}
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/30">
+                    <div className={`h-full rounded-full ${quest.color} transition-all duration-700`} style={{ width: `${Math.min(100, (quest.value / quest.target) * 100)}%` }} />
+                  </div>
+                  <p className="mt-2 text-[11px] font-semibold text-slate-400">{quest.value}/{quest.target}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-neon-cyan/20 bg-neon-cyan/5 p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl border border-neon-cyan/20 bg-neon-cyan/10 text-neon-cyan">
+                <Bot className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-cyan">AI Training Arena</p>
+                <h2 className="mt-1 text-base font-black text-white">Sesi yang disarankan</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                  {questAccuracy >= 80 ? "Pertahankan tempo dengan 10 soal Medium untuk mengejar rank berikutnya." : "Mulai 10 soal Easy atau Medium untuk menguatkan akurasi sebelum duel berikutnya."}
+                </p>
+              </div>
+            </div>
+            <button onClick={() => router.push("/practice")} className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-neon-cyan/30 bg-neon-cyan/10 px-4 text-sm font-bold text-neon-cyan transition hover:bg-neon-cyan/20">
+              Mulai Sesi Rekomendasi
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        </section>
 
         {/* Game Mode Area */}
         <div className="bg-bg-card border border-slate-800/60 rounded-2xl p-6">
@@ -270,7 +318,7 @@ export default function DashboardPage() {
             <Play size={18} className="text-blue-400" />
             Pilih Mode Pertempuran
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             
             {/* Latihan Card */}
             <motion.div
@@ -287,6 +335,22 @@ export default function DashboardPage() {
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">Asah kemampuan matematika secara solo dengan bank soal pilihan.</p>
               </div>
               <span className="text-[10px] text-emerald-400 font-bold mt-3">MULAI BERMAIN</span>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => router.push("/practice")}
+              className="p-5 rounded-xl border border-neon-cyan/20 bg-neon-cyan/5 hover:border-neon-cyan/40 transition-all cursor-pointer group flex flex-col justify-between min-h-[140px]"
+            >
+              <div>
+                <div className="w-9 h-9 rounded-lg bg-neon-cyan/10 text-neon-cyan flex items-center justify-center font-bold text-lg mb-3 group-hover:scale-110 transition-transform">
+                  <Bot size={18} aria-hidden="true" />
+                </div>
+                <h4 className="text-sm font-bold text-white">AI Training Arena</h4>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">Latihan UI-first dengan rekomendasi sesi berdasarkan statistikmu.</p>
+              </div>
+              <span className="text-[10px] text-neon-cyan font-bold mt-3">MULAI REKOMENDASI</span>
             </motion.div>
 
             {/* Duel 1v1 Card */}
@@ -413,6 +477,10 @@ export default function DashboardPage() {
                         <span className="text-[10px] text-slate-500">
                           {m.correctCount} Benar / {m.wrongCount} Salah
                         </span>
+                        <Link href={isPractice ? `/practice/${m.matchId}/result` : `/arena/${m.matchId}/result`} className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-neon-cyan hover:text-white">
+                          Detail
+                          <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                        </Link>
                       </div>
                     </div>
                   );

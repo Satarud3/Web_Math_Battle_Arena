@@ -4,12 +4,13 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
   User as UserIcon, Trophy, Activity, Award, Clock, 
-  ShieldAlert, Loader2, Play, Swords
+  ShieldAlert, Loader2, Play, Swords, TrendingUp, BrainCircuit, ChartNoAxesCombined
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import Navbar from "@/components/Navbar";
 import AchievementGrid from "@/components/AchievementGrid";
+import MathBackground from "@/components/ui/MathBackground";
 
 interface MatchRecord {
   matchId: string;
@@ -94,6 +95,17 @@ export default function PersonalProfilePage() {
     }
   };
 
+  const trendMatches = matchHistory.slice(0, 6).reverse();
+  const trendMaxScore = Math.max(1, ...trendMatches.map((match) => match.totalScore));
+  const trendPath = trendMatches.map((match, index) => {
+    const x = trendMatches.length <= 1 ? 50 : (index / (trendMatches.length - 1)) * 100;
+    const y = 88 - (match.totalScore / trendMaxScore) * 68;
+    return `${x},${y}`;
+  }).join(" ");
+  const learningFocus = Number(stats?.accuracy || 0) >= 80
+    ? "Naikkan tingkat kesulitan untuk menguji konsistensi."
+    : "Review jawaban salah terbaru untuk menguatkan ketelitian.";
+
   if (loading) {
     return (
       <div className="min-h-[100dvh] bg-bg-main text-white flex flex-col justify-center items-center gap-4">
@@ -104,7 +116,8 @@ export default function PersonalProfilePage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-bg-main text-white flex flex-col font-sans">
+    <div className="relative min-h-[100dvh] bg-bg-main text-white flex flex-col font-sans">
+      <MathBackground />
       <Navbar />
       <main className="flex-grow max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24 md:pb-8">
         
@@ -216,6 +229,48 @@ export default function PersonalProfilePage() {
           </div>
 
         </div>
+
+        <section className="mb-8 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+          <div className="rounded-2xl border border-border-soft bg-bg-card/70 p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-cyan">Performance Trend</p>
+                <h3 className="mt-1 text-lg font-black text-white">Arena performance</h3>
+              </div>
+              <TrendingUp className="h-5 w-5 text-neon-cyan" aria-hidden="true" />
+            </div>
+            {trendMatches.length ? (
+              <svg className="mt-6 h-32 w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Tren skor pertandingan terbaru">
+                <defs>
+                  <linearGradient id="profile-trend" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="var(--color-neon-cyan)" />
+                    <stop offset="100%" stopColor="var(--color-neon-purple)" />
+                  </linearGradient>
+                </defs>
+                <path d="M0,88 H100" stroke="rgba(148,163,184,0.2)" strokeDasharray="3 4" fill="none" />
+                <polyline points={trendPath} fill="none" stroke="url(#profile-trend)" strokeWidth="3" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <div className="mt-6 grid h-32 place-items-center rounded-xl border border-dashed border-slate-700 text-sm text-slate-500">Belum ada cukup pertandingan untuk menampilkan tren.</div>
+            )}
+            <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500"><span>Match lama</span><span>Match terbaru</span></div>
+          </div>
+
+          <div className="rounded-2xl border border-neon-cyan/20 bg-neon-cyan/5 p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl border border-neon-cyan/20 bg-neon-cyan/10 text-neon-cyan"><BrainCircuit className="h-5 w-5" aria-hidden="true" /></div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-cyan">Player Insight</p>
+                <h3 className="mt-1 text-base font-black text-white">Fokus berikutnya</h3>
+              </div>
+            </div>
+            <p className="mt-5 text-sm leading-relaxed text-slate-300">{learningFocus}</p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-border-soft bg-bg-card/60 p-3"><ChartNoAxesCombined className="h-4 w-4 text-neon-green" aria-hidden="true" /><p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Akurasi</p><p className="mt-1 text-lg font-black text-white">{stats ? Number(stats.accuracy).toFixed(1) : "0.0"}%</p></div>
+              <div className="rounded-xl border border-border-soft bg-bg-card/60 p-3"><Trophy className="h-4 w-4 text-neon-gold" aria-hidden="true" /><p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Rank global</p><p className="mt-1 text-lg font-black text-white">#{ranking?.currentRank || "--"}</p></div>
+            </div>
+          </div>
+        </section>
 
         {/* Achievements Section */}
         <div className="bg-bg-card/60 backdrop-blur border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl mb-8">

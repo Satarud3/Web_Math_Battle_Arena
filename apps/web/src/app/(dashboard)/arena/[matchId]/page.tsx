@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Swords, Award, CheckCircle, XCircle, HelpCircle } from "lucide-react";
+import { Swords, Award, CheckCircle, XCircle, HelpCircle, Zap } from "lucide-react";
 import { socket } from "@/lib/socket";
 import { useAuthStore } from "@/store/authStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -75,6 +75,7 @@ export default function ArenaPlayPage() {
   const [feedback, setFeedback] = useState<{ correctAnswer: string; explanation?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [unlockedAchievements, setUnlockedAchievements] = useState<AchievementUnlock[]>([]);
+  const [comboCount, setComboCount] = useState(0);
 
   // Server controlled timing
   const [endTime, setEndTime] = useState<number | null>(null);
@@ -193,6 +194,9 @@ export default function ArenaPlayPage() {
         correctAnswer: data.correctAnswer,
         explanation: data.explanation,
       });
+
+      const myResult = user?.id ? data.players[user.id] : undefined;
+      setComboCount((previous) => myResult?.isCorrect ? previous + 1 : 0);
 
       // Update both players in state
       setPlayers((prev) => {
@@ -317,6 +321,16 @@ export default function ArenaPlayPage() {
     return secs.toFixed(1);
   };
 
+  const getAnswerState = (player: PlayerState) => {
+    if (player.hasAnswered) return { label: "Answered", className: "text-emerald-400" };
+    if (timeLeft <= 0) return { label: "Timeout", className: "text-red-400" };
+    return { label: "Thinking", className: "text-amber-500 animate-pulse" };
+  };
+
+  const myAnswerState = getAnswerState(me);
+  const opponentAnswerState = getAnswerState(opponent);
+  const comboMessage = comboCount >= 5 ? "Flawless Logic" : comboCount >= 3 ? `Combo x${comboCount}` : comboCount >= 2 ? "Speed Strike" : null;
+
   return (
     <div className="min-h-screen bg-bg-main text-text-primary py-8 px-4 sm:px-6 lg:px-8 overflow-hidden relative">
       <div className="max-w-4xl mx-auto">
@@ -326,15 +340,15 @@ export default function ArenaPlayPage() {
           {/* Player 1 Left */}
           <div className="text-left flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-bold text-blue-400 text-sm shrink-0">
-              P1
+              {me.username.slice(0, 1).toUpperCase()}
             </div>
             <div>
               <div className="text-xs sm:text-sm font-bold text-slate-100 max-w-[120px] truncate">
                 @{me.username}
               </div>
               <div className="text-xl sm:text-2xl font-black text-blue-400">{me.score} <span className="text-xs font-semibold text-slate-500">PTS</span></div>
-              <span className={`text-[10px] uppercase font-bold tracking-wider ${me.hasAnswered ? "text-emerald-400" : "text-amber-500 animate-pulse"}`}>
-                {me.hasAnswered ? "Answered" : "Berpikir..."}
+              <span className={`text-[10px] uppercase font-bold tracking-wider ${myAnswerState.className}`}>
+                {myAnswerState.label}
               </span>
             </div>
           </div>
@@ -364,19 +378,33 @@ export default function ArenaPlayPage() {
           {/* Player 2 Right */}
           <div className="text-right flex flex-col sm:flex-row-reverse items-end sm:items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center font-bold text-purple-400 text-sm shrink-0">
-              P2
+              {opponent.username.slice(0, 1).toUpperCase()}
             </div>
             <div>
               <div className="text-xs sm:text-sm font-bold text-slate-100 max-w-[120px] truncate">
                 @{opponent.username}
               </div>
               <div className="text-xl sm:text-2xl font-black text-purple-400">{opponent.score} <span className="text-xs font-semibold text-slate-500">PTS</span></div>
-              <span className={`text-[10px] uppercase font-bold tracking-wider ${opponent.hasAnswered ? "text-emerald-400" : "text-amber-500 animate-pulse"}`}>
-                {opponent.hasAnswered ? "Answered" : "Berpikir..."}
+              <span className={`text-[10px] uppercase font-bold tracking-wider ${opponentAnswerState.className}`}>
+                {opponentAnswerState.label}
               </span>
             </div>
           </div>
         </div>
+
+        <AnimatePresence>
+          {comboMessage && !feedback && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full border border-neon-gold/30 bg-neon-gold/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neon-gold"
+            >
+              <Zap className="h-4 w-4" aria-hidden="true" />
+              {comboMessage}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ACTIVE QUESTION PANEL */}
         {question && (

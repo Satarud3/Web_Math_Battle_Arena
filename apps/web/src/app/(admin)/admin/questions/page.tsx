@@ -44,6 +44,7 @@ export default function AdminQuestionsPage() {
   // Filters state
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDifficulty, setSelectedDifficulty] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<"" | "ACTIVE" | "INACTIVE">("");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -154,6 +155,12 @@ export default function AdminQuestionsPage() {
     }
   };
 
+  const visibleQuestions = questions.filter((question) => {
+    if (selectedStatus === "ACTIVE") return question.isActive;
+    if (selectedStatus === "INACTIVE") return !question.isActive;
+    return true;
+  });
+
   return (
     <div className="p-6 sm:p-8 flex flex-col gap-6">
         
@@ -193,7 +200,7 @@ export default function AdminQuestionsPage() {
         </div>
 
         {/* FilterBar & Search */}
-        <div className="p-4 bg-[#0E131F] border border-slate-800 rounded-xl grid grid-cols-1 sm:grid-cols-3 gap-3 shadow-md">
+        <div className="sticky top-3 z-20 p-4 bg-[#0E131F]/95 backdrop-blur border border-slate-800 rounded-xl grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 shadow-md">
           {/* Search Input */}
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 pointer-events-none">
@@ -219,6 +226,20 @@ export default function AdminQuestionsPage() {
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="sr-only" htmlFor="question-status-filter">Status soal</label>
+            <select
+              id="question-status-filter"
+              value={selectedStatus}
+              onChange={(event) => setSelectedStatus(event.target.value as "" | "ACTIVE" | "INACTIVE")}
+              className="w-full min-h-11 bg-[#131A26] border border-slate-700 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+            >
+              <option value="">Semua Status</option>
+              <option value="ACTIVE">Aktif</option>
+              <option value="INACTIVE">Nonaktif</option>
             </select>
           </div>
 
@@ -255,7 +276,7 @@ export default function AdminQuestionsPage() {
                 ))}
               </div>
             </div>
-          ) : questions.length === 0 ? (
+          ) : visibleQuestions.length === 0 ? (
             <div className="p-12 text-center text-slate-500 text-xs flex flex-col items-center justify-center">
               <FileQuestion className="mb-2 h-9 w-9 text-slate-500" aria-hidden="true" />
               <h4 className="font-bold text-white">Soal Kosong</h4>
@@ -275,7 +296,7 @@ export default function AdminQuestionsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-850 text-slate-300">
-                  {questions.map((q) => (
+                  {visibleQuestions.map((q) => (
                     <tr key={q.id} className={`hover:bg-[#121927]/30 transition-colors ${!q.isActive ? "opacity-50" : ""}`}>
                       <td className="py-4 px-4 max-w-xs sm:max-w-md">
                         <div className="font-semibold text-white truncate text-xs sm:text-sm" title={q.questionText}>
@@ -296,6 +317,7 @@ export default function AdminQuestionsPage() {
                         <div className="flex justify-end gap-2">
                           <button 
                             onClick={() => setPreviewTarget(q)}
+                            aria-label={`Preview soal ${q.questionText}`}
                             className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded transition-colors cursor-pointer"
                             title="Preview Soal"
                           >
@@ -303,6 +325,7 @@ export default function AdminQuestionsPage() {
                           </button>
                           <Link 
                             href={`/admin/questions/${q.id}/edit`}
+                            aria-label={`Edit soal ${q.questionText}`}
                             className="p-1.5 bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-blue-300 rounded transition-colors"
                             title="Edit Soal"
                           >
@@ -310,6 +333,7 @@ export default function AdminQuestionsPage() {
                           </Link>
                           <button 
                             onClick={() => setDeleteTarget(q)}
+                            aria-label={`Hapus soal ${q.questionText}`}
                             className="p-1.5 bg-slate-800 hover:bg-slate-700 text-red-400 hover:text-red-300 rounded transition-colors cursor-pointer"
                             title="Hapus Soal"
                           >
