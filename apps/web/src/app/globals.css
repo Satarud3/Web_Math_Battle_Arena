@@ -6,21 +6,23 @@
   --bg-card: #0f172a;
   --bg-glass: rgba(255, 255, 255, 0.05);
   --border-soft: rgba(255, 255, 255, 0.12);
-  --neon-blue: #3b82f6;
+  --neon-blue: #00F0FF;
   --neon-cyan: #06b6d4;
-  --neon-purple: #8b5cf6;
+  --neon-purple: #B026FF;
   --neon-pink: #ec4899;
-  --neon-gold: #fbbf24;
+  --neon-gold: #FFB800;
   --neon-red: #ef4444;
-  --neon-green: #22c55e;
+  --neon-green: #00FF66;
   --text-primary: #FFFFFF;
   --text-secondary: #94a3b8;
+  --bg-arena: #0B1020;
+  --bg-surface: #151C33;
 
   /* Backward compatibility for existing components */
   --background: var(--bg-main);
   --foreground: var(--text-primary);
   --card: var(--bg-card);
-  --primary: var(--neon-blue);
+  --primary: #3b82f6;
   --secondary: var(--neon-purple);
   --accent: var(--neon-gold);
   --text-muted: var(--text-secondary);
@@ -44,6 +46,8 @@
 
   --color-bg-main: var(--bg-main);
   --color-bg-card: var(--bg-card);
+  --color-bg-arena: var(--bg-arena);
+  --color-bg-surface: var(--bg-surface);
   --color-neon-blue: var(--neon-blue);
   --color-neon-cyan: var(--neon-cyan);
   --color-neon-purple: var(--neon-purple);
@@ -53,8 +57,10 @@
   --color-neon-green: var(--neon-green);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
-  
-  --font-sans: var(--font-geist-sans), Inter, system-ui, sans-serif;
+
+  --font-heading: var(--font-orbitron), 'Orbitron', sans-serif;
+  --font-ui: var(--font-poppins), 'Poppins', sans-serif;
+  --font-sans: var(--font-inter), 'Inter', var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
 }
 
@@ -82,32 +88,70 @@ textarea {
 }
 
 ::selection {
-  background: rgba(6, 182, 212, 0.35);
+  background: rgba(0, 240, 255, 0.25);
   color: #ffffff;
 }
 
 .font-arena {
-  font-family: var(--font-geist-mono), var(--font-geist-sans), monospace;
+  font-family: var(--font-heading);
   letter-spacing: 0.08em;
 }
 
+.font-ui {
+  font-family: var(--font-ui);
+}
+
+/* Glassmorphism Utility Classes */
 .glass-panel {
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
 
+.glass-card {
+  background: rgba(21, 28, 51, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 240, 255, 0.03);
+}
+
+.glass-card-hover {
+  transition: all 0.3s ease;
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(0, 240, 255, 0.2);
+  box-shadow: 0 8px 40px rgba(0, 240, 255, 0.08);
+}
+
+/* Cyber Grid Background */
 .math-grid {
   background-image:
-    linear-gradient(rgba(6, 182, 212, 0.18) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(6, 182, 212, 0.18) 1px, transparent 1px);
+    linear-gradient(rgba(0, 240, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.12) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: radial-gradient(circle at center, black, transparent 78%);
 }
 
+.cyber-grid {
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.06) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: grid-scroll 20s linear infinite;
+}
+
+@keyframes grid-scroll {
+  0% { background-position: 0 0; }
+  100% { background-position: 60px 60px; }
+}
+
+/* Floating Equation Animation */
 .floating-equation {
   animation: float-equation 8s ease-in-out infinite;
 }
 
+/* Card Shimmer Effect */
 .card-shimmer {
   position: relative;
   overflow: hidden;
@@ -117,7 +161,7 @@ textarea {
   content: "";
   position: absolute;
   inset: -1px;
-  background: linear-gradient(110deg, transparent 0%, rgba(6, 182, 212, 0.22) 45%, transparent 65%);
+  background: linear-gradient(110deg, transparent 0%, rgba(0, 240, 255, 0.15) 45%, transparent 65%);
   transform: translateX(-120%);
   transition: transform 0.8s ease;
   pointer-events: none;
@@ -125,6 +169,42 @@ textarea {
 
 .card-shimmer:hover::before {
   transform: translateX(120%);
+}
+
+/* Neon Glow Utilities */
+.neon-glow-blue {
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15), 0 0 60px rgba(0, 240, 255, 0.05);
+}
+
+.neon-glow-purple {
+  box-shadow: 0 0 20px rgba(176, 38, 255, 0.15), 0 0 60px rgba(176, 38, 255, 0.05);
+}
+
+.neon-glow-gold {
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.15), 0 0 60px rgba(255, 184, 0, 0.05);
+}
+
+.neon-text-blue {
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.5), 0 0 40px rgba(0, 240, 255, 0.2);
+}
+
+.neon-text-purple {
+  text-shadow: 0 0 10px rgba(176, 38, 255, 0.5), 0 0 40px rgba(176, 38, 255, 0.2);
+}
+
+.neon-text-gold {
+  text-shadow: 0 0 10px rgba(255, 184, 0, 0.5), 0 0 40px rgba(255, 184, 0, 0.2);
+}
+
+/* Pulse Ring Animation */
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.05); opacity: 0.3; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-in-out infinite;
 }
 
 @keyframes float-equation {

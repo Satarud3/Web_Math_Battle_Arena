@@ -5,7 +5,7 @@ import { Target, ShieldCheck, Zap, Flame, BookOpen, Lock, Loader2, Award, type L
 import api from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/errors";
 
-interface Achievement {
+export interface Achievement {
   id: string;
   code: string;
   name: string;
@@ -16,6 +16,14 @@ interface Achievement {
   rewardPoint: number;
   isUnlocked: boolean;
   unlockedAt: string | null;
+}
+
+interface AchievementGridProps {
+  achievements?: Achievement[];
+  loading?: boolean;
+  compact?: boolean;
+  limit?: number;
+  showHeader?: boolean;
 }
 
 const IconMapper: Record<string, LucideIcon> = {
@@ -59,26 +67,39 @@ const GlowMapper: Record<string, { border: string; glow: string; text: string; b
   },
 };
 
-export default function AchievementGrid() {
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function AchievementGrid({
+  achievements: controlledAchievements,
+  loading: controlledLoading = false,
+  compact = false,
+  limit,
+  showHeader = true,
+}: AchievementGridProps = {}) {
+  const [fetchedAchievements, setFetchedAchievements] = useState<Achievement[]>([]);
+  const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isControlled = controlledAchievements !== undefined;
 
   useEffect(() => {
+    if (isControlled) return;
+
     const fetchAchievements = async () => {
       try {
         const res = await api.get("/achievements/me");
-        setAchievements(res.data);
+        setFetchedAchievements(res.data);
       } catch (err: unknown) {
         console.error("Gagal mengambil data pencapaian", err);
         setError(getApiErrorMessage(err, "Gagal memuat daftar pencapaian."));
       } finally {
-        setLoading(false);
+        setFetching(false);
       }
     };
 
     fetchAchievements();
-  }, []);
+  }, [isControlled]);
+
+  const achievements = controlledAchievements ?? fetchedAchievements;
+  const visibleAchievements = typeof limit === "number" ? achievements.slice(0, limit) : achievements;
+  const loading = isControlled ? controlledLoading : fetching;
 
   if (loading) {
     return (
@@ -99,14 +120,14 @@ export default function AchievementGrid() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 mb-4">
+      {showHeader && <div className="flex items-center gap-2 mb-4">
         <Award className="w-5 h-5 text-yellow-400" />
         <h3 className="text-lg font-black text-slate-200 uppercase tracking-wider">
           Pencapaian & Medali
         </h3>
-      </div>
+      </div>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${compact ? "" : "sm:grid-cols-2 md:grid-cols-3"}`}>
         {achievements.length === 0 && (
           <div className="col-span-full grid min-h-40 place-items-center rounded-2xl border border-dashed border-slate-700 bg-bg-card/40 p-6 text-center">
             <div>
@@ -116,7 +137,7 @@ export default function AchievementGrid() {
             </div>
           </div>
         )}
-        {achievements.map((ach) => {
+        {visibleAchievements.map((ach) => {
           const IconComponent = IconMapper[ach.icon] || Award;
           const style = GlowMapper[ach.icon] || {
             border: "border-slate-800",
@@ -129,7 +150,7 @@ export default function AchievementGrid() {
             return (
               <div
                 key={ach.id}
-                className="relative bg-[#0E1524]/40 border border-slate-800/60 rounded-2xl p-5 flex items-start gap-4 opacity-50 grayscale transition-all duration-300 hover:opacity-60"
+                className={`relative bg-[#0E1524]/40 border border-slate-800/60 rounded-2xl ${compact ? "p-4" : "p-5"} flex items-start gap-4 opacity-50 grayscale transition-all duration-300 hover:opacity-60`}
               >
                 <div className="w-12 h-12 rounded-xl bg-slate-800/40 border border-slate-700 flex items-center justify-center shrink-0 text-slate-500">
                   <IconComponent className="w-6 h-6" />
@@ -152,7 +173,7 @@ export default function AchievementGrid() {
           return (
             <div
               key={ach.id}
-              className={`relative bg-[#0E1524]/80 border ${style.border} ${style.glow} rounded-2xl p-5 flex items-start gap-4 transition-all duration-300 hover:scale-[1.02]`}
+              className={`relative bg-[#0E1524]/80 border ${style.border} ${style.glow} rounded-2xl ${compact ? "p-4" : "p-5"} flex items-start gap-4 transition-all duration-300 hover:scale-[1.02]`}
             >
               <div className={`w-12 h-12 rounded-xl ${style.bg} border ${style.border} flex items-center justify-center shrink-0 ${style.text}`}>
                 <IconComponent className="w-6 h-6" />
