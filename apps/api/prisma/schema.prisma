@@ -18,6 +18,23 @@ enum Difficulty {
   HARD
 }
 
+enum QuestionType {
+  MULTIPLE_CHOICE
+  FILL_BLANK
+  TRUE_FALSE
+  SELECT_MULTIPLE
+  MATCH_PAIR
+  DRAG_ORDER
+  ARRANGE_FORMULA
+  BUILD_EQUATION
+  NUMBER_LINE
+  COORDINATE_PLANE
+  GEOMETRY_BUILDER
+  FUNCTION_GRAPH
+  SWIPE_ANSWER
+  PUZZLE
+}
+
 enum MatchMode {
   PRACTICE
   DUEL
@@ -88,20 +105,23 @@ model QuestionCategory {
 }
 
 model Question {
-  id           String           @id @default(uuid()) @db.Uuid
-  categoryId   String           @map("category_id") @db.Uuid
-  category     QuestionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  questionText String           @map("question_text") @db.Text
-  options      Json             // JSON representing options (e.g. {"A": "1", "B": "2", ...})
-  correctAnswer String          @map("correct_answer")
-  explanation  String?          @db.Text
-  difficulty   Difficulty       @default(EASY)
-  baseScore    Int              @default(100) @map("base_score")
-  isActive     Boolean          @default(true) @map("is_active")
-  createdById  String?          @map("created_by_id") @db.Uuid
-  createdBy    User?            @relation("QuestionCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt    DateTime         @default(now()) @map("created_at")
-  answers      Answer[]
+  id            String           @id @default(uuid()) @db.Uuid
+  categoryId    String           @map("category_id") @db.Uuid
+  category      QuestionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  questionText  String           @map("question_text") @db.Text
+  options       Json?            // JSON representing options (e.g. {"A": "1", "B": "2", ...})
+  correctAnswer String?          @map("correct_answer")
+  type          QuestionType     @default(MULTIPLE_CHOICE)
+  questionData  Json?            @map("question_data")
+  answerData    Json?            @map("answer_data")
+  explanation   String?          @db.Text
+  difficulty    Difficulty       @default(EASY)
+  baseScore     Int              @default(100) @map("base_score")
+  isActive      Boolean          @default(true) @map("is_active")
+  createdById   String?          @map("created_by_id") @db.Uuid
+  createdBy     User?            @relation("QuestionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime         @default(now()) @map("created_at")
+  answers       Answer[]
 
   @@map("questions")
 }

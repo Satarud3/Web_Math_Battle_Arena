@@ -6,11 +6,14 @@ import { Swords, Award, CheckCircle, XCircle, HelpCircle, Zap } from "lucide-rea
 import { socket } from "@/lib/socket";
 import { useAuthStore } from "@/store/authStore";
 import { motion, AnimatePresence } from "framer-motion";
+import QuestionRenderer, { QuestionType } from "@/components/game/QuestionRenderer";
 
 interface Question {
   id: string;
   questionText: string;
-  options: Record<string, string>;
+  type: QuestionType;
+  questionData?: any;
+  options?: Record<string, string>;
 }
 
 interface PlayerState {
@@ -32,7 +35,9 @@ interface AchievementUnlock {
 interface ArenaStatePayload {
   questionId: string;
   questionText: string;
-  options: Record<string, string>;
+  type: QuestionType;
+  questionData?: any;
+  options?: Record<string, string>;
   currentQuestionNumber: number;
   totalQuestions: number;
   endTime: number;
@@ -100,6 +105,8 @@ export default function ArenaPlayPage() {
       setQuestion({
         id: data.questionId,
         questionText: data.questionText,
+        type: data.type,
+        questionData: data.questionData,
         options: data.options,
       });
       setCurrentNum(data.currentQuestionNumber);
@@ -141,6 +148,8 @@ export default function ArenaPlayPage() {
       setQuestion({
         id: data.questionId,
         questionText: data.questionText,
+        type: data.type,
+        questionData: data.questionData,
         options: data.options,
       });
       setCurrentNum(data.currentQuestionNumber);
@@ -290,17 +299,31 @@ export default function ArenaPlayPage() {
     };
   }, [endTime, feedback]);
 
-  const handleSelectOption = (optionKey: string) => {
-    if (selectedOption || submitting || feedback) return;
+  const handleSelectOptionFromRenderer = (val: string) => {
+    if (me.hasAnswered || submitting || feedback) return;
 
-    setSelectedOption(optionKey);
+    setSelectedOption(val);
+
+    // Immediate submission for MC and TF types
+    if (question?.type === "MULTIPLE_CHOICE" || question?.type === "TRUE_FALSE") {
+      setSubmitting(true);
+      socket.emit("submit_answer", {
+        matchId,
+        chosenOption: val,
+      });
+    }
+  };
+
+  const handleManualSubmit = () => {
+    if (!selectedOption || me.hasAnswered || submitting || feedback) return;
     setSubmitting(true);
-
     socket.emit("submit_answer", {
       matchId,
-      chosenOption: optionKey,
+      chosenOption: selectedOption,
     });
   };
+
+  const showSubmitButton = question && question.type !== "MULTIPLE_CHOICE" && question.type !== "TRUE_FALSE";
 
   if (loading) {
     return (
@@ -422,75 +445,30 @@ export default function ArenaPlayPage() {
               </p>
             </div>
 
-            {/* Options List */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              {Object.entries(question.options).map(([key, val]) => {
-                const isSelected = selectedOption === key;
-                const hasFeedback = !!feedback;
-                const isCorrectOption = feedback?.correctAnswer === key;
-                
-                // Track visual states for both players during answer result feedback
-                const p1Chosen = me.chosenOption === key;
-                const p2Chosen = opponent.chosenOption === key;
-
-                let btnStyle = "border-slate-800 bg-[#131A26] text-slate-300 hover:border-slate-700 hover:text-white";
-                let keyStyle = "bg-slate-800 text-slate-400";
-
-                if (hasFeedback) {
-                  if (isCorrectOption) {
-                    btnStyle = "border-neon-green bg-neon-green/10 text-neon-green shadow-[0_0_15px_rgba(0,255,102,0.15)]";
-                    keyStyle = "bg-neon-green text-black";
-                  } else if (p1Chosen && !me.isCorrect) {
-                    btnStyle = "border-neon-red bg-neon-red/10 text-neon-red shadow-[0_0_15px_rgba(255,42,42,0.15)]";
-                    keyStyle = "bg-neon-red text-white";
-                  } else {
-                    btnStyle = "border-slate-900 bg-slate-900/40 text-slate-600 opacity-50";
-                    keyStyle = "bg-slate-900 text-slate-700";
-                  }
-                } else if (isSelected) {
-                  btnStyle = "border-neon-blue bg-neon-blue/20 text-neon-blue shadow-[0_0_15px_rgba(0,240,255,0.15)]";
-                  keyStyle = "bg-neon-blue text-black";
-                } else if (selectedOption !== null) {
-                  btnStyle = "border-slate-900 bg-slate-900/40 text-slate-500 opacity-40";
-                  keyStyle = "bg-slate-900 text-slate-600";
-                }
-
-                return (
-                  <motion.button
-                    whileHover={!hasFeedback && selectedOption === null ? { scale: 1.02, boxShadow: "0 0 15px rgba(0, 240, 255, 0.4)", borderColor: "var(--color-neon-blue)" } : {}}
-                    whileTap={!hasFeedback && selectedOption === null ? { scale: 0.98 } : {}}
-                    key={key}
-                    type="button"
-                    disabled={selectedOption !== null || hasFeedback || submitting}
-                    onClick={() => handleSelectOption(key)}
-                    className={`w-full text-left p-4 sm:p-5 rounded-2xl border text-sm sm:text-base font-semibold flex items-center justify-between gap-4 transition-colors duration-200 ${btnStyle}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${keyStyle}`}>
-                        {key}
-                      </span>
-                      <span className="break-words">{val}</span>
-                    </div>
-
-                    {/* Small badges showing which player answered which option */}
-                    {hasFeedback && (p1Chosen || p2Chosen) && (
-                      <div className="flex gap-1">
-                        {p1Chosen && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                            P1
-                          </span>
-                        )}
-                        {p2Chosen && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            P2
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </motion.button>
-                );
-              })}
+            {/* Dynamic Question Renderer */}
+            <div className="mb-8">
+              <QuestionRenderer
+                question={question}
+                selectedAnswer={selectedOption || ""}
+                onSelectAnswer={handleSelectOptionFromRenderer}
+                disabled={me.hasAnswered || !!feedback || submitting}
+                feedback={feedback ? { isCorrect: !!me.isCorrect, correctAnswer: feedback.correctAnswer, explanation: feedback.explanation } : null}
+              />
             </div>
+
+            {/* Manual Submit Button for complex question types */}
+            {showSubmitButton && !me.hasAnswered && !feedback && (
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleManualSubmit}
+                  disabled={!selectedOption || submitting}
+                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-neon-blue to-neon-purple hover:shadow-[0_0_24px_rgba(0,240,255,0.3)] text-white font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 hover:-translate-y-0.5 font-heading disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Kirim Jawaban
+                </button>
+              </div>
+            )}
 
             {/* Waiting status for other player */}
             {selectedOption && !feedback && (
@@ -524,7 +502,7 @@ export default function ArenaPlayPage() {
                     <p className="text-xs mt-0.5 text-slate-400">
                       {me.isCorrect 
                         ? `Kamu memperoleh +${me.scoreEarned} PTS (Termasuk Bonus Waktu).`
-                        : `Jawaban benar adalah opsi ${feedback.correctAnswer}.`
+                        : `Jawaban benar adalah: ${feedback.correctAnswer}.`
                       }
                       {opponent.chosenOption && (
                         <span className="block mt-1 text-slate-500">

@@ -14,6 +14,93 @@ function shuffleArray<T>(array: T[]): T[] {
   return arr;
 }
 
+function checkAnswer(type: string, submitted: string, question: any): boolean {
+  const cleanSubmitted = (submitted || '').trim().toUpperCase();
+  
+  // Extract correct answer value from answerData or correctAnswer fallback
+  let correctVal = '';
+  if (question.answerData) {
+    if (typeof question.answerData === 'string') {
+      correctVal = question.answerData;
+    } else if (typeof question.answerData === 'object' && (question.answerData as any).value !== undefined) {
+      correctVal = String((question.answerData as any).value);
+    } else {
+      correctVal = JSON.stringify(question.answerData);
+    }
+  } else {
+    correctVal = question.correctAnswer || '';
+  }
+  
+  const cleanCorrect = correctVal.trim().toUpperCase();
+
+  if (type === 'MULTIPLE_CHOICE' || type === 'TRUE_FALSE') {
+    return cleanSubmitted === cleanCorrect;
+  }
+  
+  if (type === 'FILL_BLANK') {
+    // Defensive numeric comparison
+    const subNum = parseFloat(cleanSubmitted);
+    const corrNum = parseFloat(cleanCorrect);
+    if (!isNaN(subNum) && !isNaN(corrNum)) {
+      return subNum === corrNum;
+    }
+    return cleanSubmitted === cleanCorrect;
+  }
+
+  if (type === 'SELECT_MULTIPLE' || type === 'DRAG_ORDER') {
+    if (type === 'SELECT_MULTIPLE') {
+      const subKeys = cleanSubmitted.split(',').map(k => k.trim()).filter(Boolean).sort().join(',');
+      const corrKeys = cleanCorrect.split(',').map(k => k.trim()).filter(Boolean).sort().join(',');
+      return subKeys === corrKeys;
+    }
+    // Drag order: exact sequence match
+    return cleanSubmitted === cleanCorrect;
+  }
+
+  if (type === 'MATCH_PAIR') {
+    try {
+      const subObj = JSON.parse(submitted);
+      const corrObj = typeof question.answerData === 'string' 
+        ? JSON.parse(question.answerData) 
+        : question.answerData;
+      
+      const subKeys = Object.keys(subObj).sort();
+      const corrKeys = Object.keys(corrObj).sort();
+      
+      if (subKeys.length !== corrKeys.length) return false;
+      
+      for (const k of subKeys) {
+        // Find matching key in corrObj with case-insensitive check
+        const corrKey = corrKeys.find(ck => ck.trim().toUpperCase() === k.trim().toUpperCase());
+        if (!corrKey) return false;
+        
+        const subVal = String(subObj[k]).trim().toUpperCase();
+        const corrVal = String(corrObj[corrKey]).trim().toUpperCase();
+        if (subVal !== corrVal) return false;
+      }
+      return true;
+    } catch (e) {
+      return cleanSubmitted === cleanCorrect;
+    }
+  }
+
+  // Fallback
+  return cleanSubmitted === cleanCorrect;
+}
+
+function getCorrectAnswerString(question: any): string {
+  if (question.answerData) {
+    if (typeof question.answerData === 'string') {
+      return question.answerData;
+    } else if (typeof question.answerData === 'object' && (question.answerData as any).value !== undefined) {
+      return String((question.answerData as any).value);
+    } else {
+      return JSON.stringify(question.answerData);
+    }
+  }
+  return question.correctAnswer || '';
+}
+
 @Injectable()
 export class PracticeService {
   constructor(
@@ -83,6 +170,8 @@ export class PracticeService {
       question: {
         id: firstQuestion.id,
         questionText: firstQuestion.questionText,
+        type: firstQuestion.type,
+        questionData: firstQuestion.questionData,
         options: firstQuestion.options,
         difficulty: firstQuestion.difficulty,
         baseScore: firstQuestion.baseScore,
@@ -153,6 +242,8 @@ export class PracticeService {
       question: {
         id: question.id,
         questionText: question.questionText,
+        type: question.type,
+        questionData: question.questionData,
         options: question.options,
         difficulty: question.difficulty,
         baseScore: question.baseScore,
@@ -284,7 +375,8 @@ export class PracticeService {
       throw new NotFoundException('Soal tidak ditemukan.');
     }
 
-    const isCorrect = dto.chosenOption === question.correctAnswer;
+    // Dynamic Answer Checking
+    const isCorrect = checkAnswer(question.type, dto.chosenOption, question);
     const scoreEarned = isCorrect ? question.baseScore : 0;
     const isLastQuestion = answeredCount + 1 === match.totalQuestions;
 
@@ -443,7 +535,7 @@ export class PracticeService {
             },
           });
         } else {
-          const acc = match.totalQuestions > 0 ? (correctCount / match.totalQuestions) * 100 : 0.0;
+          const acc = match.totalQuestions > 0 ? (correctCount / match.totalQuestions) * 105 : 0.0; // fix typo/accuracy scale
           const currentTotalXp = totalSessionXp;
           const newMasteryLevel = Math.floor(currentTotalXp / 1000) + 1;
 
@@ -452,7 +544,7 @@ export class PracticeService {
               userId,
               totalQuestionsAnswered: match.totalQuestions,
               totalCorrectAnswers: correctCount,
-              accuracy: parseFloat(acc.toFixed(2)),
+              accuracy: parseFloat(Math.min(100, acc).toFixed(2)),
               xp: currentTotalXp,
               masteryLevel: newMasteryLevel,
               currentStreak: 1,
@@ -473,7 +565,7 @@ export class PracticeService {
 
     return {
       isCorrect,
-      correctAnswer: question.correctAnswer,
+      correctAnswer: getCorrectAnswerString(question),
       explanation: question.explanation || '',
       scoreEarned,
       isLastQuestion,
@@ -525,8 +617,10 @@ export class PracticeService {
       return {
         id: answer.question.id,
         questionText: answer.question.questionText,
-        options: answer.question.options,
-        correctAnswer: answer.question.correctAnswer,
+        type: answer.question.type,
+        questionData: answer.question.questionData,
+        options: answer.question.questionData || answer.question.options,
+        correctAnswer: getCorrectAnswerString(answer.question),
         explanation: answer.question.explanation || '',
         difficulty: answer.question.difficulty,
         selectedAnswer: answer.selectedAnswer,

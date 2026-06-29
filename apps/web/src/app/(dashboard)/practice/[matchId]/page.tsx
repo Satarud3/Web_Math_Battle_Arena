@@ -6,6 +6,8 @@ import { Clock, Award, BookOpen, ChevronRight, CheckCircle, XCircle, HelpCircle 
 import api from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/errors";
 
+import QuestionRenderer, { QuestionType } from "@/components/game/QuestionRenderer";
+
 interface AchievementUnlock {
   id: string;
   name: string;
@@ -16,7 +18,9 @@ interface AchievementUnlock {
 interface Question {
   id: string;
   questionText: string;
-  options: Record<string, string>;
+  type: QuestionType;
+  questionData?: any;
+  options?: Record<string, string>;
   difficulty: string;
   baseScore: number;
 }
@@ -57,7 +61,7 @@ export default function PracticePlayPage() {
   const fetchCurrentQuestion = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setSelectedOption(null);
+    setSelectedOption("");
     setFeedback(null);
     setTimerSeconds(0);
 
@@ -137,20 +141,10 @@ export default function PracticePlayPage() {
     }
   };
 
+  // Sub-renderers handle their own keyboard shortcuts to avoid conflicts.
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target;
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
-
-      const optionKey = event.key.toUpperCase();
-      if (!feedback && question?.options[optionKey] && !submitting) {
-        setSelectedOption(optionKey);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [feedback, question, submitting]);
+    // Spacer to keep hooks order identical
+  }, []);
 
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -247,48 +241,15 @@ export default function PracticePlayPage() {
             </p>
           </div>
 
-          {/* Options Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            {Object.entries(question.options).map(([key, value]) => {
-              const isSelected = selectedOption === key;
-              const hasSubmitted = !!feedback;
-              const isOptionCorrect = feedback?.correctAnswer === key;
-              const isOptionSelectedWrong = hasSubmitted && isSelected && !feedback.isCorrect;
-
-              let buttonClass = "border-slate-800 bg-[#131A26] text-slate-300 hover:border-slate-700 hover:text-white";
-              let keyBg = "bg-slate-800 text-slate-400";
-
-              if (hasSubmitted) {
-                if (isOptionCorrect) {
-                  buttonClass = "border-green-500 bg-green-500/10 text-green-300 shadow-[0_0_15px_rgba(34,197,94,0.15)]";
-                  keyBg = "bg-green-600 text-white";
-                } else if (isOptionSelectedWrong) {
-                  buttonClass = "border-red-500 bg-red-500/10 text-red-300 shadow-[0_0_15px_rgba(239,68,68,0.15)]";
-                  keyBg = "bg-red-600 text-white";
-                } else {
-                  buttonClass = "border-slate-900 bg-slate-900/40 text-slate-600 opacity-60";
-                  keyBg = "bg-slate-900 text-slate-700";
-                }
-              } else if (isSelected) {
-                buttonClass = "border-indigo-500 bg-indigo-600/20 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]";
-                keyBg = "bg-indigo-600 text-white";
-              }
-
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  disabled={hasSubmitted}
-                  onClick={() => setSelectedOption(key)}
-                  className={`w-full text-left p-4 sm:p-5 rounded-2xl border text-sm sm:text-base font-medium flex items-center gap-4 transition-all duration-200 ${buttonClass}`}
-                >
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${keyBg}`}>
-                    {key}
-                  </span>
-                  <span className="break-words">{value}</span>
-                </button>
-              );
-            })}
+          {/* Dynamic Question Renderer */}
+          <div className="mb-8">
+            <QuestionRenderer
+              question={question}
+              selectedAnswer={selectedOption || ""}
+              onSelectAnswer={setSelectedOption}
+              disabled={!!feedback || submitting}
+              feedback={feedback}
+            />
           </div>
 
           {/* Action Footer */}
@@ -333,7 +294,7 @@ export default function PracticePlayPage() {
                   <p className="text-sm mt-1 text-slate-400">
                     {feedback.isCorrect 
                       ? `Kamu berhasil mendapatkan +${feedback.scoreEarned} PTS.` 
-                      : `Jawaban yang benar adalah opsi ${feedback.correctAnswer}.`
+                      : `Jawaban yang benar adalah: ${feedback.correctAnswer}.`
                     }
                   </p>
                 </div>
