@@ -71,7 +71,7 @@ export default function DuelResultPage() {
           <p className="text-sm font-semibold">{error || "Data tidak ditemukan."}</p>
         </div>
         <button
-          onClick={() => router.push("/duel")}
+          onClick={() => router.push("/duel/choose-mode")}
           className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-xl shadow-lg transition-all duration-200"
         >
           Kembali ke Duel Setup
@@ -234,7 +234,7 @@ export default function DuelResultPage() {
         {/* ACTION BUTTON CONTROLS */}
         <div className="flex flex-col sm:flex-row gap-4">
           <Link
-            href="/duel"
+            href="/duel/choose-mode"
             className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all duration-200 flex items-center justify-center gap-2 group"
           >
             <Swords className="w-5 h-5 group-hover:scale-110 transition-transform" />

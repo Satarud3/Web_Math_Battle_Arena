@@ -83,6 +83,17 @@ export default function PracticeSetupPage() {
     fetchCampInfo();
   }, []);
 
+  // Pre-select category from URL query parameters (Smart Remedial Route Binding)
+  useEffect(() => {
+    if (typeof window !== "undefined" && categories.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get("category");
+      if (cat && categories.some((c) => c.id === cat)) {
+        setSelectedCategoryId(cat);
+      }
+    }
+  }, [categories]);
+
   const handleStartPractice = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);

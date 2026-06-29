@@ -12,7 +12,7 @@ export default function MobileBottomNav() {
   const navItems = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
     { name: "Latihan", href: "/practice", icon: Dumbbell },
-    { name: "Duel", href: "/duel", icon: Swords },
+    { name: "Duel", href: "/duel/choose-mode", icon: Swords },
     { name: "Peringkat", href: "/leaderboard", icon: Trophy },
     { name: "Profil", href: "/profile", icon: User },
   ];

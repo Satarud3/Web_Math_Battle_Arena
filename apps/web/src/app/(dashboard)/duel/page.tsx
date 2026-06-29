@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Swords, Loader2, XCircle, ShieldAlert, Crosshair, BrainCircuit, ScanLine } from "lucide-react";
 import { motion } from "framer-motion";
@@ -17,9 +17,14 @@ interface DuelOpponent {
   ratingPoint: number;
 }
 
-export default function DuelSetupPage() {
+function DuelSetupContent() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const searchParams = useSearchParams();
+  
+  // Read mode from search params, default to ARENA
+  const mode = (searchParams.get("mode") || "ARENA").toUpperCase();
+
   const [status, setStatus] = useState<QueueStatus>("IDLE");
   const [opponent, setOpponent] = useState<DuelOpponent | null>(null);
   const [ratingPoint, setRatingPoint] = useState<number | null>(null);
@@ -96,7 +101,7 @@ export default function DuelSetupPage() {
   const handleJoinQueue = () => {
     setStatus("JOINING");
     setErrorMsg(null);
-    socket.emit("join_queue");
+    socket.emit("join_queue", { chosenMode: mode });
   };
 
   const handleLeaveQueue = () => {
@@ -110,6 +115,7 @@ export default function DuelSetupPage() {
   };
 
   const matchmakingRange = ratingPoint ? Math.min(250, 50 + Math.floor(queueTime / 8) * 25) : 100;
+  
   const queueTips = [
     "Jawaban cepat tetap butuh verifikasi satu langkah terakhir.",
     "Gunakan eliminasi opsi saat bentuk persamaan terasa asing.",
@@ -117,17 +123,25 @@ export default function DuelSetupPage() {
   ];
   const queueTip = queueTips[Math.floor(queueTime / 8) % queueTips.length];
 
+  // Map mode ID to user-friendly label
+  const modeLabels: Record<string, string> = {
+    LIGHTNING: "⚡ Lightning Battle",
+    ARENA: "🔥 Arena Battle",
+    STRATEGY: "🧠 Strategy Battle",
+    MARATHON: "👑 Marathon Battle",
+  };
+
   return (
     <div className="min-h-screen bg-bg-main text-text-primary py-12 px-4 sm:px-6 lg:px-8 flex flex-col justify-between overflow-x-hidden">
       <PageTransition className="max-w-2xl mx-auto w-full flex-grow flex flex-col justify-center">
         {/* Back Link */}
         <div className="mb-8">
           <Link 
-            href="/dashboard" 
+            href="/duel/choose-mode" 
             className="inline-flex items-center gap-2 text-slate-400 hover:text-neon-blue transition-colors duration-200 group text-sm font-ui"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Kembali ke Dashboard
+            Pilih Mode Lain
           </Link>
         </div>
 
@@ -138,11 +152,14 @@ export default function DuelSetupPage() {
 
           {/* Top Info */}
           <div>
-            <h1 className="text-3xl font-black bg-gradient-to-r from-neon-blue via-neon-purple to-neon-gold bg-clip-text text-transparent sm:text-4xl font-heading drop-shadow-[0_0_20px_rgba(0,240,255,0.25)]">
+            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-neon-blue/20 bg-neon-blue/5 text-neon-cyan font-heading">
+              {modeLabels[mode] || "🔥 Arena Battle"}
+            </span>
+            <h1 className="text-3xl font-black bg-gradient-to-r from-neon-blue via-neon-purple to-neon-gold bg-clip-text text-transparent sm:text-4xl font-heading drop-shadow-[0_0_20px_rgba(0,240,255,0.25)] mt-4">
               Mode Duel 1 vs 1
             </h1>
-            <p className="text-slate-400 mt-3 text-xs sm:text-sm max-w-md mx-auto font-ui leading-relaxed">
-              Tandingi ksatria matematika lain secara real-time. Menang menambah +25 RP, kalah mengurangi -20 RP.
+            <p className="text-slate-400 mt-2 text-xs sm:text-sm max-w-md mx-auto font-ui leading-relaxed">
+              Tandingi ksatria matematika lain secara real-time. Menang menambah +25 RP, kalah mengurangi -10 RP.
             </p>
           </div>
 
@@ -152,10 +169,10 @@ export default function DuelSetupPage() {
             </div>
             <div className="min-w-0 font-ui">
               <p className="truncate text-sm font-black text-white">@{user?.username || "challenger"}</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ranked challenger</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-heading">Ranked challenger</p>
             </div>
             <div className="text-right font-heading">
-              <p className="text-sm font-black text-neon-cyan">{ratingPoint ?? "--"} RP</p>
+              <p className="text-sm font-black text-neon-cyan">{ratingPoint ?? 1000} RP</p>
               <p className="text-[10px] font-bold text-slate-500 font-ui">Current MMR</p>
             </div>
           </div>
@@ -224,7 +241,7 @@ export default function DuelSetupPage() {
                 </>
               ) : (
                 <>
-                  <Swords className="w-12 h-12 text-slate-550 group-hover:text-neon-blue transition-colors animate-pulse" />
+                  <Swords className="w-12 h-12 text-slate-500 group-hover:text-neon-blue transition-colors animate-pulse" />
                   <span className="text-xs text-slate-500 mt-3 font-bold font-ui">Ready to Fight</span>
                 </>
               )}
@@ -305,5 +322,18 @@ export default function DuelSetupPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DuelSetupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-bg-main text-white flex flex-col justify-center items-center gap-4">
+        <Loader2 className="w-10 h-10 text-neon-blue animate-spin" />
+        <p className="text-text-secondary text-sm font-medium animate-pulse font-ui">Memuat antrean duel...</p>
+      </div>
+    }>
+      <DuelSetupContent />
+    </Suspense>
   );
 }

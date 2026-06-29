@@ -14,6 +14,7 @@ import { MatchmakingService } from './matchmaking.service';
 import { RoomService } from './room.service';
 import * as cookie from 'cookie';
 import { Inject, forwardRef } from '@nestjs/common';
+import { getTier } from '../common/utils/tier';
 
 const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
 if (process.env.FRONTEND_URL) {
@@ -171,7 +172,8 @@ export class GameGateway
       const question = room.questions.get(questionId);
 
       if (question) {
-        const endTime = room.questionStartTime + 15000;
+        const duration = room.battleMode === 'LIGHTNING' ? 10000 : room.battleMode === 'MARATHON' ? 35000 : room.battleMode === 'STRATEGY' ? 45000 : 15000;
+        const endTime = room.endTime || (room.questionStartTime + duration);
         const scores: Record<string, number> = {};
         const playersInfo: Record<string, any> = {};
         for (const [uid, p] of Object.entries(room.players)) {
@@ -180,6 +182,8 @@ export class GameGateway
             username: p.username,
             score: p.totalScore,
             hasAnswered: p.submittedAnswerThisQuestion,
+            ratingPoint: p.ratingPoint || 1000,
+            tier: getTier(p.ratingPoint || 1000),
           };
         }
 
@@ -187,10 +191,13 @@ export class GameGateway
 
         client.emit('reconnect_state', {
           matchId: room.matchId,
+          battleMode: room.battleMode,
           currentQuestionNumber: room.currentQuestionIndex + 1,
           totalQuestions: room.questionOrder.length,
           questionId: question.id,
           questionText: question.questionText,
+          type: question.type,
+          questionData: question.questionData,
           options: question.options,
           endTime,
           scores,
@@ -203,14 +210,19 @@ export class GameGateway
   }
 
   @SubscribeMessage('join_queue')
-  handleJoinQueue(@ConnectedSocket() client: Socket) {
+  handleJoinQueue(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload?: { chosenMode?: string },
+  ) {
     if (!client.data || !client.data.user) return;
     const user = client.data.user;
-    console.log(`[Socket.IO] Player @${user.username} requested join_queue`);
+    const chosenMode = payload?.chosenMode || 'ARENA';
+    console.log(`[Socket.IO] Player @${user.username} requested join_queue with mode ${chosenMode}`);
     this.matchmakingService.joinQueue({
       userId: user.id,
       socketId: client.id,
       username: user.username,
+      chosenMode,
     });
   }
 

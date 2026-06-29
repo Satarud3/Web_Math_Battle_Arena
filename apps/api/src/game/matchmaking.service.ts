@@ -10,6 +10,7 @@ export interface QueueEntry {
   username: string;
   ratingPoint: number;
   joinedAt: Date;
+  chosenMode: string;
 }
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -56,7 +57,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async joinQueue(player: { userId: string; socketId: string; username: string }) {
+  async joinQueue(player: { userId: string; socketId: string; username: string; chosenMode?: string }) {
     // Check if player is already waiting
     const exists = this.queue.some((entry) => entry.userId === player.userId);
     if (exists) return;
@@ -66,6 +67,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       where: { userId: player.userId },
     });
     const ratingPoint = ranking ? ranking.ratingPoint : 1000;
+    const chosenMode = player.chosenMode || 'ARENA';
 
     const entry: QueueEntry = {
       userId: player.userId,
@@ -73,6 +75,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       username: player.username,
       ratingPoint,
       joinedAt: new Date(),
+      chosenMode,
     };
 
     this.queue.push(entry);
@@ -80,6 +83,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
     // Notify player that they successfully joined the queue
     this.server.to(player.socketId).emit('queue_joined', {
       ratingPoint,
+      chosenMode,
     });
   }
 
@@ -107,6 +111,10 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
 
       for (let j = i + 1; j < this.queue.length; j++) {
         const playerB = this.queue[j];
+
+        // Matchmaking must match players in the SAME mode
+        if (playerA.chosenMode !== playerB.chosenMode) continue;
+
         const elapsedSecsB = (Date.now() - playerB.joinedAt.getTime()) / 1000;
         const toleranceB = 300 + Math.floor(elapsedSecsB * 15);
 
@@ -132,7 +140,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
 
   private async createMatch(playerA: QueueEntry, playerB: QueueEntry) {
     try {
-      // 1. Fetch 10 random active questions
+      // 1. Fetch active questions
       const activeQuestions = await this.prisma.question.findMany({
         where: { isActive: true },
       });
@@ -141,8 +149,14 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
         throw new Error('Bank soal kosong, tidak dapat membuat pertandingan.');
       }
 
+      // Determine dynamic question count based on chosenMode
+      let questionCount = 20;
+      if (playerA.chosenMode === 'MARATHON') {
+        questionCount = 50;
+      }
+
       const shuffled = shuffleArray(activeQuestions);
-      const selected = shuffled.slice(0, 10);
+      const selected = shuffled.slice(0, Math.min(questionCount, shuffled.length));
       const questionOrder = selected.map((q) => q.id);
 
       // 2. Create Match and MatchPlayers atomically
@@ -189,9 +203,10 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       if (socketA) socketA.join(match.id);
       if (socketB) socketB.join(match.id);
 
-      // 4. Emit match_found to both players
+      // 4. Emit match_found to both players, including battleMode
       this.server.to(playerA.socketId).emit('match_found', {
         matchId: match.id,
+        battleMode: playerA.chosenMode,
         opponent: {
           userId: playerB.userId,
           username: playerB.username,
@@ -201,6 +216,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
 
       this.server.to(playerB.socketId).emit('match_found', {
         matchId: match.id,
+        battleMode: playerB.chosenMode,
         opponent: {
           userId: playerA.userId,
           username: playerA.username,
@@ -209,7 +225,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       });
 
       // 5. Initialize active Room
-      await this.roomService.createRoom(match.id, playerA, playerB, questionOrder);
+      await this.roomService.createRoom(match.id, playerA, playerB, questionOrder, playerA.chosenMode);
     } catch (err) {
       console.error('Gagal membuat pertandingan 1v1:', err);
       // Put them back in queue or notify failure

@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { 
   Activity, Play, Swords, Award, Clock, Target, ShieldAlert, Sparkles,
-  Brain, RadioTower, Lock, Bot, CircleCheckBig, ChevronRight, Gauge, Flame
+  Brain, RadioTower, Lock, Bot, CircleCheckBig, ChevronRight, Gauge, Flame,
+  BrainCircuit, Loader2
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -85,6 +86,7 @@ export default function DashboardPage() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [loadingAchievements, setLoadingAchievements] = useState(true);
+  const [loadingCoach, setLoadingCoach] = useState(true);
 
   const [profileError, setProfileError] = useState<string | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -94,6 +96,7 @@ export default function DashboardPage() {
   const [ranking, setRanking] = useState<Ranking | null>(null);
   const [recentMatches, setRecentMatches] = useState<MatchRecord[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [aiCoach, setAiCoach] = useState<any | null>(null);
 
   const answeredToday = Math.min(10, stats?.totalQuestionsAnswered || 0);
   const questAccuracy = Math.min(100, Math.round(Number(stats?.accuracy || 0)));
@@ -152,10 +155,22 @@ export default function DashboardPage() {
       }
     };
 
+    const fetchAiCoach = async () => {
+      try {
+        const response = await api.get("/ai-coach/dashboard");
+        setAiCoach(response.data);
+      } catch (error: unknown) {
+        console.error("Failed to fetch AI Coach", error);
+      } finally {
+        setLoadingCoach(false);
+      }
+    };
+
     fetchProfile();
     fetchStats();
     fetchRecentMatches();
     fetchAchievements();
+    fetchAiCoach();
   }, [setUser, logout, router]);
 
   return (
@@ -197,7 +212,7 @@ export default function DashboardPage() {
               
               <div className="flex gap-3 w-full md:w-auto relative z-10">
                 <button 
-                  onClick={() => router.push("/duel")}
+                  onClick={() => router.push("/duel/choose-mode")}
                   className="flex-1 md:flex-none px-6 py-3 bg-gradient-to-r from-neon-blue to-neon-purple hover:shadow-[0_0_24px_rgba(0,240,255,0.3)] text-white text-sm font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 hover:-translate-y-0.5"
                 >
                   <Swords size={18} />
@@ -321,26 +336,46 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Adaptive Training Lab Card */}
-            <div className="glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between">
+            {/* AI Coach Quick Insight Card */}
+            <div className="glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-neon-purple/20 bg-neon-purple/5 shadow-[0_0_20px_rgba(168,85,247,0.05)]">
               <div className="flex items-start gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl border border-neon-cyan/25 bg-neon-cyan/10 text-neon-cyan">
-                  <Bot className="h-5 w-5" aria-hidden="true" />
+                <div className="grid h-10 w-10 place-items-center rounded-xl border border-neon-purple/25 bg-neon-purple/10 text-neon-purple">
+                  <BrainCircuit className="h-5 w-5 animate-pulse" aria-hidden="true" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-cyan font-heading">AI Training Arena</p>
-                    <span className="rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-[9px] font-black uppercase text-slate-300">Segera Hadir</span>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-purple font-heading">AI Coach Active</p>
+                    <span className="rounded-full border border-neon-purple/35 bg-neon-purple/20 px-2 py-0.5 text-[9px] font-black uppercase text-neon-purple-300">Sistem Aktif</span>
                   </div>
-                  <h2 className="mt-1 text-base font-black text-white font-heading">Adaptive training lab</h2>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                    Rekomendasi personal, deteksi kelemahan, dan tutor adaptif sedang disiapkan untuk versi berikutnya.
-                  </p>
+                  <h2 className="mt-1 text-base font-black text-white font-heading">AI Coach Insight</h2>
+                  
+                  {loadingCoach ? (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 font-ui animate-pulse">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Menganalisis performa...
+                    </div>
+                  ) : aiCoach ? (
+                    <div className="mt-2 text-xs text-slate-300 space-y-1 font-ui">
+                      {aiCoach.recommendedTrainingId ? (
+                        <>
+                          <p>🎯 Peluang Menang: <span className="font-bold text-neon-purple">{aiCoach.estimatedWinRate}%</span></p>
+                          <p>⚠️ Fokus Remedial: <span className="font-bold text-neon-red">{aiCoach.weakestCategory}</span></p>
+                        </>
+                      ) : (
+                        <p className="text-slate-400 italic">{aiCoach.recentImprovement}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500 font-ui">Gagal memuat analisis.</p>
+                  )}
                 </div>
               </div>
-              <button disabled className="mt-5 inline-flex min-h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-white/5 bg-bg-surface/50 px-4 text-sm font-bold text-slate-500">
-                <Lock className="h-4 w-4" aria-hidden="true" />
-                Segera Hadir
+              <button 
+                onClick={() => router.push("/profile?tab=ai-coach")}
+                className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-neon-purple/20 bg-neon-purple/10 hover:bg-neon-purple/20 hover:border-neon-purple/30 text-neon-purple text-sm font-black transition-all cursor-pointer"
+              >
+                <BrainCircuit className="h-4 w-4" aria-hidden="true" />
+                Buka AI Coach
               </button>
             </div>
           </section>
@@ -370,29 +405,28 @@ export default function DashboardPage() {
                 <span className="text-[10px] text-neon-green font-bold mt-3 font-heading tracking-wider">MULAI BERMAIN →</span>
               </motion.div>
 
-              {/* AI Training Arena (locked) */}
-              <div
-                aria-disabled="true"
-                className="p-5 rounded-xl border border-white/5 bg-bg-surface/10 cursor-not-allowed flex flex-col justify-between min-h-[150px] opacity-60"
+              {/* AI Coach Card (unlocked) */}
+              <motion.div
+                whileHover={{ scale: 1.03, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => router.push("/profile?tab=ai-coach")}
+                className="p-5 rounded-xl border border-white/10 bg-bg-surface/30 hover:border-neon-purple/30 transition-all cursor-pointer group flex flex-col justify-between min-h-[150px] glass-card-hover"
               >
                 <div>
-                  <div className="w-9 h-9 rounded-lg bg-neon-cyan/10 text-neon-cyan flex items-center justify-center font-bold text-lg mb-3">
+                  <div className="w-9 h-9 rounded-lg bg-neon-purple/15 text-neon-purple flex items-center justify-center font-bold text-lg mb-3 group-hover:scale-110 transition-transform">
                     <Bot size={18} aria-hidden="true" />
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-bold text-white font-ui">AI Training Arena</h4>
-                    <Lock className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">Tutor adaptif dan rekomendasi sesi personal sedang dikembangkan.</p>
+                  <h4 className="text-sm font-bold text-white group-hover:text-neon-purple transition-colors font-ui">AI Coach</h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">Analisis kelemahan, rasio kemenangan duel, proyeksi rank, dan rekomendasi latihan.</p>
                 </div>
-                <span className="text-[10px] text-slate-500 font-bold mt-3 font-heading tracking-wider">SEGERA HADIR</span>
-              </div>
+                <span className="text-[10px] text-neon-purple font-bold mt-3 font-heading tracking-wider">BUKA COACH →</span>
+              </motion.div>
 
               {/* Duel 1v1 Card */}
               <motion.div
                 whileHover={{ scale: 1.03, y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => router.push("/duel")}
+                onClick={() => router.push("/duel/choose-mode")}
                 className="p-5 rounded-xl border border-white/10 bg-bg-surface/30 hover:border-neon-blue/30 transition-all cursor-pointer group flex flex-col justify-between min-h-[150px] glass-card-hover"
               >
                 <div>

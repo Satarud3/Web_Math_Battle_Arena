@@ -102,6 +102,7 @@ export interface RoomPlayer {
   isCorrect?: boolean;
   scoreEarnedThisQuestion?: number;
   answerTimeMsThisQuestion?: number;
+  ratingPoint?: number;
 }
 
 export interface GameRoom {
@@ -112,6 +113,8 @@ export interface GameRoom {
   questionStartTime: number; // Date.now() timestamp
   timeoutRef?: NodeJS.Timeout;
   questions: Map<string, Question>; // key: questionId
+  battleMode: string;
+  endTime?: number;
 }
 
 @Injectable()
@@ -134,9 +137,10 @@ export class RoomService {
 
   async createRoom(
     matchId: string,
-    player1: { userId: string; socketId: string; username: string },
-    player2: { userId: string; socketId: string; username: string },
+    player1: { userId: string; socketId: string; username: string; ratingPoint?: number },
+    player2: { userId: string; socketId: string; username: string; ratingPoint?: number },
     questionOrder: string[],
+    battleMode: string,
   ) {
     // Fetch question details for the match
     const questionList = await this.prisma.question.findMany({
@@ -160,6 +164,7 @@ export class RoomService {
           wrongCount: 0,
           totalAnswerTimeMs: 0,
           submittedAnswerThisQuestion: false,
+          ratingPoint: player1.ratingPoint || 1000,
         },
         [player2.userId]: {
           userId: player2.userId,
@@ -170,12 +175,14 @@ export class RoomService {
           wrongCount: 0,
           totalAnswerTimeMs: 0,
           submittedAnswerThisQuestion: false,
+          ratingPoint: player2.ratingPoint || 1000,
         },
       },
       questionOrder,
       currentQuestionIndex: 0,
       questionStartTime: 0,
       questions: questionsMap,
+      battleMode: battleMode || 'ARENA',
     };
 
     this.rooms.set(matchId, room);
@@ -195,10 +202,13 @@ export class RoomService {
       return;
     }
 
-    room.questionStartTime = Date.now();
-    const endTime = Date.now() + 15000; // 15 seconds from now
+    const duration = room.battleMode === 'LIGHTNING' ? 10000 : room.battleMode === 'MARATHON' ? 35000 : room.battleMode === 'STRATEGY' ? 45000 : 15000;
 
-    // Reset player submissions for this question
+    room.questionStartTime = Date.now();
+    room.endTime = Date.now() + duration;
+    const endTime = room.endTime;
+
+    // Reset player submissions for this question (Strict Reset)
     for (const p of Object.values(room.players)) {
       p.submittedAnswerThisQuestion = false;
       p.chosenOption = undefined;
@@ -219,11 +229,11 @@ export class RoomService {
       endTime,
     });
 
-    // Schedule automatic timeout in 15 seconds
+    // Schedule automatic timeout
     if (room.timeoutRef) clearTimeout(room.timeoutRef);
     room.timeoutRef = setTimeout(() => {
       this.handleQuestionTimeout(matchId);
-    }, 15000);
+    }, duration);
   }
 
   async submitAnswer(matchId: string, userId: string, chosenOption: string) {
@@ -237,27 +247,65 @@ export class RoomService {
     const question = room.questions.get(questionId);
     if (!question) return;
 
+    const duration = room.battleMode === 'LIGHTNING' ? 10000 : room.battleMode === 'MARATHON' ? 35000 : room.battleMode === 'STRATEGY' ? 45000 : 15000;
     const elapsedMs = Date.now() - room.questionStartTime;
-    const sisaDetik = Math.max(0, (15000 - elapsedMs) / 1000);
+
+    // 500ms network grace period buffer for LIGHTNING and ARENA
+    const graceBuffer = (room.battleMode === 'LIGHTNING' || room.battleMode === 'ARENA') ? 500 : 0;
+    const sisaDetik = Math.max(0, (duration + graceBuffer - elapsedMs) / 1000);
     
     // Dynamic Answer Checking
     const isCorrect = checkAnswer(question.type, chosenOption, question);
 
-    // Time bonus logic: baseScore + (sisaDetik * 2) + difficultyBonus
-    let difficultyBonus = 0;
-    if (question.difficulty === 'MEDIUM') difficultyBonus = 30;
-    else if (question.difficulty === 'HARD') difficultyBonus = 60;
+    // Strategy Battle Sudden Death Trigger (if first player submits and > 10s left)
+    if (room.battleMode === 'STRATEGY') {
+      const alreadySubmittedCount = Object.values(room.players).filter((p) => p.submittedAnswerThisQuestion).length;
+      if (alreadySubmittedCount === 0) {
+        const remainingMs = room.endTime ? (room.endTime - Date.now()) : (duration - elapsedMs);
+        if (remainingMs > 10000) {
+          room.endTime = Date.now() + 10000;
+          if (room.timeoutRef) clearTimeout(room.timeoutRef);
+          room.timeoutRef = setTimeout(() => {
+            this.handleQuestionTimeout(matchId);
+          }, 10000);
 
-    const scoreEarned = isCorrect
-      ? Math.round(question.baseScore + sisaDetik * 2 + difficultyBonus)
-      : 0;
+          // Emit sudden death event
+          this.server.to(matchId).emit('strategy_sudden_death', {
+            endTime: room.endTime,
+            triggerUserId: userId,
+          });
+        }
+      }
+    }
+
+    // Calculate score based on battleMode
+    let scoreEarned = 0;
+    if (isCorrect) {
+      if (room.battleMode === 'STRATEGY') {
+        // Soft-timer speed ranking: first correct = 100 PTS, second correct = 70 PTS
+        const otherPlayer = Object.values(room.players).find((p) => p.userId !== userId);
+        const otherIsCorrect = otherPlayer && otherPlayer.submittedAnswerThisQuestion && otherPlayer.isCorrect;
+        scoreEarned = otherIsCorrect ? 70 : 100;
+      } else if (room.battleMode === 'MARATHON') {
+        // Marathon: flat score (accuracy-focused, no speed bonus)
+        scoreEarned = question.baseScore;
+      } else {
+        // LIGHTNING (10s) or ARENA (15s) with time bonus multiplier (3x for Lightning, 2x for Arena)
+        let difficultyBonus = 0;
+        if (question.difficulty === 'MEDIUM') difficultyBonus = 30;
+        else if (question.difficulty === 'HARD') difficultyBonus = 60;
+
+        const timeMultiplier = room.battleMode === 'LIGHTNING' ? 3 : 2;
+        scoreEarned = Math.round(question.baseScore + sisaDetik * timeMultiplier + difficultyBonus);
+      }
+    }
 
     // Record player state
     player.submittedAnswerThisQuestion = true;
     player.chosenOption = chosenOption;
     player.isCorrect = isCorrect;
     player.scoreEarnedThisQuestion = scoreEarned;
-    player.answerTimeMsThisQuestion = Math.round(elapsedMs);
+    player.answerTimeMsThisQuestion = Math.min(duration, Math.round(elapsedMs));
 
     // Update totals
     player.totalScore += scoreEarned;
@@ -266,7 +314,7 @@ export class RoomService {
     } else {
       player.wrongCount++;
     }
-    player.totalAnswerTimeMs += Math.round(elapsedMs);
+    player.totalAnswerTimeMs += Math.min(duration, Math.round(elapsedMs));
 
     // Save answer record to database in real-time
     await this.prisma.answer.create({
@@ -276,7 +324,7 @@ export class RoomService {
         questionId: question.id,
         selectedAnswer: chosenOption,
         isCorrect,
-        answerTimeMs: Math.round(elapsedMs),
+        answerTimeMs: Math.min(duration, Math.round(elapsedMs)),
         scoreEarned,
       },
     });
@@ -286,23 +334,13 @@ export class RoomService {
       userId,
     });
 
-    console.log(`[Socket.IO Room] Match ${matchId} - Player ${userId} answer registered (${chosenOption}). isCorrect: ${isCorrect}`);
-
-    // Check if both players have answered
-    const allAnswered = Object.values(room.players).every(
+    // If both players have submitted, process question end immediately
+    const allSubmitted = Object.values(room.players).every(
       (p) => p.submittedAnswerThisQuestion,
     );
 
-    console.log(`[Socket.IO Room] Match ${matchId} - allAnswered is ${allAnswered}. Player states:`, 
-      Object.values(room.players).map(p => `${p.username}: ${p.submittedAnswerThisQuestion}`)
-    );
-
-    if (allAnswered) {
-      console.log(`[Socket.IO Room] Match ${matchId} - both players answered. Transitioning to next question immediately.`);
-      if (room.timeoutRef) {
-        clearTimeout(room.timeoutRef);
-        room.timeoutRef = undefined;
-      }
+    if (allSubmitted) {
+      if (room.timeoutRef) clearTimeout(room.timeoutRef);
       this.processQuestionEnd(matchId);
     }
   }
@@ -315,6 +353,8 @@ export class RoomService {
     const question = room.questions.get(questionId);
     if (!question) return;
 
+    const duration = room.battleMode === 'LIGHTNING' ? 10000 : room.battleMode === 'MARATHON' ? 35000 : room.battleMode === 'STRATEGY' ? 45000 : 15000;
+
     // For any player who didn't submit, save a timeout answer
     for (const player of Object.values(room.players)) {
       if (!player.submittedAnswerThisQuestion) {
@@ -322,9 +362,9 @@ export class RoomService {
         player.chosenOption = 'TIMEOUT';
         player.isCorrect = false;
         player.scoreEarnedThisQuestion = 0;
-        player.answerTimeMsThisQuestion = 15000;
+        player.answerTimeMsThisQuestion = duration;
         player.wrongCount++;
-        player.totalAnswerTimeMs += 15000;
+        player.totalAnswerTimeMs += duration;
 
         await this.prisma.answer.create({
           data: {
@@ -333,7 +373,7 @@ export class RoomService {
             questionId: question.id,
             selectedAnswer: 'TIMEOUT',
             isCorrect: false,
-            answerTimeMs: 15000,
+            answerTimeMs: duration,
             scoreEarned: 0,
           },
         });
@@ -382,8 +422,36 @@ export class RoomService {
     if (room.currentQuestionIndex + 1 === room.questionOrder.length) {
       this.finishMatch(matchId);
     } else {
-      room.currentQuestionIndex++;
-      this.sendQuestion(matchId);
+      // Marathon Checkpoint System (Stamina Break every 10 questions)
+      const currentQuestionNum = room.currentQuestionIndex + 1;
+      if (room.battleMode === 'MARATHON' && currentQuestionNum % 10 === 0) {
+        const currentCheckpoint = Math.floor(currentQuestionNum / 10);
+
+        // Find leader
+        const players = Object.values(room.players);
+        let leaderUserId = players[0].userId;
+        if (players[1] && players[1].totalScore > players[0].totalScore) {
+          leaderUserId = players[1].userId;
+        } else if (players[1] && players[1].totalScore === players[0].totalScore) {
+          if (players[1].correctCount > players[0].correctCount) {
+            leaderUserId = players[1].userId;
+          }
+        }
+
+        this.server.to(matchId).emit('marathon_checkpoint', {
+          currentCheckpoint,
+          leaderUserId,
+          resumeTime: Date.now() + 7000,
+        });
+
+        setTimeout(() => {
+          room.currentQuestionIndex++;
+          this.sendQuestion(matchId);
+        }, 7000);
+      } else {
+        room.currentQuestionIndex++;
+        this.sendQuestion(matchId);
+      }
     }
   }
 
