@@ -112,31 +112,51 @@ export default function Home() {
               </div>
             </motion.div>
 
-            {/* 3D Hero Visual */}
+            {/* Cyberpunk Math Hero Visual */}
             <motion.div
               initial={{ opacity: 0, scale: 0.94 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, delay: 0.1 }}
-              className="relative min-h-[420px]"
+              className="relative min-h-[440px] flex items-center justify-center"
             >
-              {/* 3D Canvas - Floating Math Elements */}
-              <div className="absolute inset-0 z-0">
-                <ThreeCanvas className="h-full w-full" camera={{ position: [0, 0, 6], fov: 55 }}>
-                  <FloatingMathScene />
-                </ThreeCanvas>
+              {/* Outer Glow behind the rings */}
+              <div className="absolute w-[360px] h-[240px] rounded-full bg-neon-blue/5 blur-3xl opacity-60 pointer-events-none" />
+
+              {/* Orbiting Ring Visuals (Oval & Tilted) */}
+              <div className="relative w-[380px] h-[200px] flex items-center justify-center [transform:rotate(-15deg)]">
+                {/* Outer rotating dashed ring */}
+                <div className="absolute inset-0 rounded-full border-2 border-dashed border-neon-blue/20 animate-[spin_25s_linear_infinite]" />
+                {/* Middle reverse rotating ring with gold indicators */}
+                <div className="absolute inset-4 rounded-full border border-dashed border-neon-gold/25 animate-[spin_20s_linear_infinite_reverse]" />
+                {/* Inner fast rotating ring with purple glow */}
+                <div className="absolute inset-8 rounded-full border-2 border-neon-purple/20 animate-[spin_15s_linear_infinite]" />
+                {/* Solid thin inner border */}
+                <div className="absolute inset-12 rounded-full border border-white/5" />
+
+                {/* Pulsing Central Glass Shield with Sigma (un-tilted/upright) */}
+                <div className="absolute z-10 grid h-36 w-36 place-items-center rounded-[2.2rem] border border-neon-blue/30 bg-bg-surface/60 text-6xl font-black text-neon-blue shadow-[0_0_50px_rgba(0,240,255,0.25)] glass-panel animate-pulse [transform:rotate(15deg)]">
+                  <span className="font-heading tracking-normal neon-text-blue">Σ</span>
+                </div>
+
+                {/* Cyber HUD Accents */}
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-4 h-1 bg-neon-blue/60 rounded-full" />
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-4 h-1 bg-neon-blue/60 rounded-full" />
+                <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1 h-4 bg-neon-blue/60 rounded-full" />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-4 bg-neon-blue/60 rounded-full" />
               </div>
 
-              {/* Decorative rings behind 3D */}
-              <div className="absolute inset-0 rounded-full border border-neon-blue/15 bg-neon-blue/5 shadow-[0_0_120px_rgba(0,240,255,0.15)] pointer-events-none" />
-              <div className="absolute inset-8 rounded-full border border-neon-purple/15 pointer-events-none" />
-              <div className="absolute inset-16 rounded-full border border-dashed border-neon-gold/20 pointer-events-none" />
+              {/* Floating Math Symbols */}
+              <div className="absolute top-8 right-8 text-neon-purple/55 text-lg font-bold font-heading animate-bounce [animation-delay:0.5s]">π</div>
+              <div className="absolute bottom-12 left-8 text-neon-cyan/55 text-xl font-bold font-heading animate-bounce [animation-delay:1s]">∫</div>
+              <div className="absolute top-24 left-6 text-neon-green/45 text-sm font-bold font-heading animate-bounce [animation-delay:1.5s]">√x</div>
+              <div className="absolute bottom-16 right-10 text-neon-gold/45 text-lg font-bold font-heading animate-bounce [animation-delay:0.2s]">Δ</div>
 
               {/* Floating info cards */}
-              <GlassCard className="absolute left-0 top-10 z-10 max-w-[190px] p-4">
+              <GlassCard className="absolute left-[-20px] top-4 z-20 max-w-[190px] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-blue">Live Formula</p>
                 <p className="mt-2 font-mono text-sm text-white">f(x)=x²+7</p>
               </GlassCard>
-              <GlassCard className="absolute bottom-8 right-0 z-10 max-w-[210px] p-4">
+              <GlassCard className="absolute bottom-4 right-[-20px] z-20 max-w-[210px] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neon-gold">Match Pulse</p>
                 <p className="mt-2 text-sm text-slate-200">Speed Strike ready under 3 seconds.</p>
               </GlassCard>

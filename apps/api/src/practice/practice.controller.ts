@@ -15,6 +15,12 @@ export class PracticeController {
     return this.practiceService.startPractice(req.user.id, dto);
   }
 
+  @Get('daily-challenges')
+  @HttpCode(HttpStatus.OK)
+  async getDailyChallenges(@Request() req) {
+    return this.practiceService.getDailyChallenges(req.user.id);
+  }
+
   @Get(':matchId/current')
   @HttpCode(HttpStatus.OK)
   async getCurrentQuestion(@Param('matchId') matchId: string, @Request() req) {

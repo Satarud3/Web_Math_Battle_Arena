@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { 
   Activity, Play, Swords, Award, Clock, Target, ShieldAlert, Sparkles,
-  Brain, RadioTower, Lock, Bot, CircleCheckBig, ChevronRight, Gauge
+  Brain, RadioTower, Lock, Bot, CircleCheckBig, ChevronRight, Gauge, Flame
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -65,6 +65,8 @@ interface UserStats {
   totalCorrectAnswers: number;
   accuracy: string;
   winRate: string;
+  currentStreak: number;
+  highestStreak: number;
 }
 
 interface Ranking {
@@ -268,19 +270,20 @@ export default function DashboardPage() {
                   <span className="text-[10px] text-slate-500 font-ui">Total {stats?.totalQuestionsAnswered || 0} Soal</span>
                 </motion.div>
 
-                {/* Achievement Card */}
-                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }} className="p-5 glass-card glass-card-hover rounded-xl flex flex-col justify-between">
+                {/* Daily Streak Card */}
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }} className="p-5 glass-card glass-card-hover rounded-xl flex flex-col justify-between border border-white/5">
                   <span className="text-xs uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5 font-ui">
-                    <Award size={14} className="text-neon-gold" />
-                    Total Achievement
+                    <Flame size={14} className="text-neon-gold animate-pulse" />
+                    Daily Streak
                   </span>
                   <div className="my-2">
-                    <div className="text-2xl sm:text-3xl font-black text-white font-heading">
-                      {loadingAchievements ? "--" : achievements.length}
+                    <div className="text-2xl sm:text-3xl font-black text-white font-heading flex items-baseline gap-1">
+                      {stats?.currentStreak || 0}
+                      <span className="text-xs text-slate-500 font-bold font-ui"> HARI</span>
                     </div>
-                    <span className="text-xs text-slate-400 font-bold">Total medali tersedia</span>
+                    <span className="text-xs text-slate-450 font-bold font-ui">Pertahankan latihan harianmu!</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-ui">{unlockedAchievementCount} achievement sudah terbuka</span>
+                  <span className="text-[10px] text-slate-500 font-ui">Rekor tertinggi: {stats?.highestStreak || 0} hari</span>
                 </motion.div>
               </>
             )}

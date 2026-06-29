@@ -73,6 +73,7 @@ model User {
   userAchievements UserAchievement[]
   createdQuestions Question[]        @relation("QuestionCreator")
   wonMatches       Match[]           @relation("MatchWinner")
+  dailyChallenges  DailyChallenge[]
 
   @@map("users")
 }
@@ -239,7 +240,24 @@ model UserStats {
   accuracy               Decimal  @default(0.0) @db.Decimal(5, 2)
   winRate                Decimal  @default(0.0) @map("win_rate") @db.Decimal(5, 2)
   currentStreak          Int      @default(0) @map("current_streak")
+  xp                     Int      @default(0)
+  masteryLevel           Int      @default(1) @map("mastery_level")
+  highestStreak          Int      @default(0) @map("highest_streak")
+  lastPracticeAt         DateTime? @map("last_practice_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   @@map("user_stats")
+}
+
+model DailyChallenge {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  description String
+  xpReward    Int      @map("xp_reward")
+  isCompleted Boolean  @default(false) @map("is_completed")
+  userId      String   @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("daily_challenges")
 }

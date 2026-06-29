@@ -160,6 +160,81 @@ export class PracticeService {
     };
   }
 
+  async getDailyChallenges(userId: string) {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    // Find challenges for today
+    let challenges = await this.prisma.dailyChallenge.findMany({
+      where: {
+        userId,
+        createdAt: {
+          gte: startOfToday,
+          lte: endOfToday,
+        },
+      },
+      orderBy: { xpReward: 'asc' },
+    });
+
+    // Generate challenges if they don't exist
+    if (challenges.length === 0) {
+      challenges = await this.prisma.$transaction(async (tx) => {
+        const c1 = await tx.dailyChallenge.create({
+          data: {
+            userId,
+            title: 'Pemanasan Pagi',
+            description: 'Selesaikan 1 sesi latihan dalam mode apa saja.',
+            xpReward: 100,
+          },
+        });
+
+        const c2 = await tx.dailyChallenge.create({
+          data: {
+            userId,
+            title: 'Akurasi Tinggi',
+            description: 'Selesaikan sesi latihan dengan akurasi minimal 80%.',
+            xpReward: 150,
+          },
+        });
+
+        const c3 = await tx.dailyChallenge.create({
+          data: {
+            userId,
+            title: 'Kecepatan Kilat',
+            description: 'Selesaikan sesi latihan dengan rata-rata waktu menjawab di bawah 6 detik.',
+            xpReward: 200,
+          },
+        });
+
+        return [c1, c2, c3];
+      });
+    }
+
+    // Get current level & progress
+    const stats = await this.prisma.userStats.findUnique({
+      where: { userId },
+    });
+
+    const currentXp = stats?.xp || 0;
+    const currentLevel = stats?.masteryLevel || 1;
+    const currentStreak = stats?.currentStreak || 0;
+    
+    const xpInCurrentLevel = currentXp % 1000;
+    const xpNeededForNextLevel = 1000;
+
+    return {
+      challenges,
+      currentLevel,
+      currentXp,
+      xpInCurrentLevel,
+      xpNeededForNextLevel,
+      currentStreak,
+    };
+  }
+
   async submitAnswer(matchId: string, userId: string, dto: SubmitAnswerDto) {
     const match = await this.prisma.match.findUnique({
       where: { id: matchId },
@@ -261,8 +336,65 @@ export class PracticeService {
           },
         });
 
-        // Update UserStats: totalQuestionsAnswered, totalCorrectAnswers, and accuracy.
-        // We MUST NOT change MMR/Ranking, totalMatches, wins, losses.
+        // Calculate Practice XP
+        let matchXp = 0;
+        const answersForXp = await tx.answer.findMany({
+          where: { matchId, userId },
+          include: { question: true },
+        });
+
+        for (const ans of answersForXp) {
+          if (ans.isCorrect) {
+            const diff = ans.question.difficulty;
+            if (diff === Difficulty.EASY) matchXp += 10;
+            else if (diff === Difficulty.MEDIUM) matchXp += 15;
+            else if (diff === Difficulty.HARD) matchXp += 20;
+          }
+        }
+
+        // Perfect score bonus
+        const accuracy = match.totalQuestions > 0 ? (correctCount / match.totalQuestions) * 100 : 0.0;
+        if (correctCount === match.totalQuestions) {
+          matchXp += 50;
+        }
+
+        // Evaluate Daily Challenges for today
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const endOfToday = new Date();
+        endOfToday.setHours(23, 59, 59, 999);
+
+        const dailyChallenges = await tx.dailyChallenge.findMany({
+          where: {
+            userId,
+            isCompleted: false,
+            createdAt: { gte: startOfToday, lte: endOfToday },
+          },
+        });
+
+        let challengeXpBonus = 0;
+        for (const challenge of dailyChallenges) {
+          let completed = false;
+          if (challenge.title === 'Pemanasan Pagi') {
+            completed = true; // finishing this match completes it
+          } else if (challenge.title === 'Akurasi Tinggi') {
+            if (accuracy >= 80) completed = true;
+          } else if (challenge.title === 'Kecepatan Kilat') {
+            if (avgAnswerTime < 6000) completed = true; // average answer time under 6 seconds (6000ms)
+          }
+
+          if (completed) {
+            await tx.dailyChallenge.update({
+              where: { id: challenge.id },
+              data: { isCompleted: true },
+            });
+            challengeXpBonus += challenge.xpReward;
+          }
+        }
+
+        const totalSessionXp = matchXp + challengeXpBonus;
+
+        // Update UserStats: totalQuestionsAnswered, totalCorrectAnswers, accuracy, XP, Mastery, Streaks
         const existingStats = await tx.userStats.findUnique({
           where: { userId },
         });
@@ -272,22 +404,60 @@ export class PracticeService {
           const newTotalCorrect = existingStats.totalCorrectAnswers + correctCount;
           const newAccuracy = newTotalQuestions > 0 ? (newTotalCorrect / newTotalQuestions) * 100 : 0.0;
 
+          // Streak Logic
+          let newStreak = 1;
+          const lastPractice = existingStats.lastPracticeAt ? new Date(existingStats.lastPracticeAt) : null;
+          const now = new Date();
+
+          if (lastPractice) {
+            const oneDayInMs = 24 * 60 * 60 * 1000;
+            const diffInMs = now.getTime() - lastPractice.getTime();
+            
+            const isSameDay = now.toDateString() === lastPractice.toDateString();
+            const isNextDay = new Date(now.getTime() - oneDayInMs).toDateString() === lastPractice.toDateString() || (diffInMs > 12 * 60 * 60 * 1000 && diffInMs <= 36 * 60 * 60 * 1000);
+
+            if (isSameDay) {
+              newStreak = existingStats.currentStreak;
+            } else if (isNextDay) {
+              newStreak = existingStats.currentStreak + 1;
+            } else {
+              newStreak = 1;
+            }
+          }
+
+          const highestStreak = Math.max(existingStats.highestStreak, newStreak);
+          const currentTotalXp = existingStats.xp + totalSessionXp;
+          const newMasteryLevel = Math.floor(currentTotalXp / 1000) + 1;
+
           await tx.userStats.update({
             where: { userId },
             data: {
               totalQuestionsAnswered: newTotalQuestions,
               totalCorrectAnswers: newTotalCorrect,
               accuracy: parseFloat(newAccuracy.toFixed(2)),
+              xp: currentTotalXp,
+              masteryLevel: newMasteryLevel,
+              currentStreak: newStreak,
+              highestStreak,
+              lastPracticeAt: now,
             },
           });
         } else {
-          const accuracy = match.totalQuestions > 0 ? (correctCount / match.totalQuestions) * 100 : 0.0;
+          const acc = match.totalQuestions > 0 ? (correctCount / match.totalQuestions) * 100 : 0.0;
+          const currentTotalXp = totalSessionXp;
+          const newMasteryLevel = Math.floor(currentTotalXp / 1000) + 1;
+
           await tx.userStats.create({
             data: {
               userId,
               totalQuestionsAnswered: match.totalQuestions,
               totalCorrectAnswers: correctCount,
-              accuracy: parseFloat(accuracy.toFixed(2)),
+              accuracy: parseFloat(acc.toFixed(2)),
+              xp: currentTotalXp,
+              masteryLevel: newMasteryLevel,
+              currentStreak: 1,
+              highestStreak: 1,
+              lastPracticeAt: new Date(),
             },
           });
         }
@@ -321,7 +491,11 @@ export class PracticeService {
         answers: {
           where: { userId },
           include: {
-            question: true,
+            question: {
+              include: {
+                category: true,
+              },
+            },
           },
         },
       },
@@ -341,7 +515,7 @@ export class PracticeService {
 
     const playerStats = match.matchPlayers[0];
 
-    // Let's order the answers according to the questionOrder field in match to match the playing progression
+    // Order answers according to the questionOrder field in match to match the playing progression
     const questionOrder = match.questionOrder as string[];
     const answersMap = new Map(match.answers.map((a) => [a.questionId, a]));
 
@@ -364,17 +538,123 @@ export class PracticeService {
 
     const accuracy = match.totalQuestions > 0 ? (playerStats.correctCount / match.totalQuestions) * 100 : 0.0;
 
+    // Calculate XP earned from this match
+    let matchXp = 0;
+    for (const ans of match.answers) {
+      if (ans.isCorrect) {
+        const diff = ans.question.difficulty;
+        if (diff === Difficulty.EASY) matchXp += 10;
+        else if (diff === Difficulty.MEDIUM) matchXp += 15;
+        else if (diff === Difficulty.HARD) matchXp += 20;
+      }
+    }
+    if (playerStats.correctCount === match.totalQuestions) {
+      matchXp += 50; // Perfect score bonus
+    }
+
+    // Determine if any daily challenges were completed in this session
+    // We check if the challenges were completed today and the session met the criteria
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const completedChallengesToday = await this.prisma.dailyChallenge.findMany({
+      where: {
+        userId,
+        isCompleted: true,
+        createdAt: { gte: startOfToday, lte: endOfToday },
+      },
+    });
+
+    let challengeXpBonus = 0;
+    const completedInThisSession: string[] = [];
+
+    for (const challenge of completedChallengesToday) {
+      let completedInMatch = false;
+      if (challenge.title === 'Pemanasan Pagi') {
+        completedInMatch = true; // completing this match completes the first practice challenge
+      } else if (challenge.title === 'Akurasi Tinggi') {
+        if (accuracy >= 80) completedInMatch = true;
+      } else if (challenge.title === 'Kecepatan Kilat') {
+        if (Number(playerStats.avgAnswerTime) < 6000) completedInMatch = true;
+      }
+
+      if (completedInMatch) {
+        challengeXpBonus += challenge.xpReward;
+        completedInThisSession.push(challenge.title);
+      }
+    }
+
+    const totalXpEarned = matchXp + challengeXpBonus;
+
+    // Calculate Mastery Level Info
+    const stats = await this.prisma.userStats.findUnique({
+      where: { userId },
+    });
+
+    const currentXp = stats?.xp || 0;
+    const currentLevel = stats?.masteryLevel || 1;
+    const xpBeforeMatch = Math.max(0, currentXp - totalXpEarned);
+    const levelBeforeMatch = Math.floor(xpBeforeMatch / 1000) + 1;
+    const masteryIncreased = currentLevel > levelBeforeMatch;
+
+    // Calculate Best Combo (consecutive correct answers)
+    let bestCombo = 0;
+    let currentCombo = 0;
+    for (const qId of questionOrder) {
+      const ans = answersMap.get(qId);
+      if (ans && ans.isCorrect) {
+        currentCombo++;
+        if (currentCombo > bestCombo) {
+          bestCombo = currentCombo;
+        }
+      } else {
+        currentCombo = 0;
+      }
+    }
+
+    // Determine strongest category (category with the most correct answers)
+    const categoryScores: { [key: string]: { correct: number; total: number } } = {};
+    for (const ans of match.answers) {
+      const catName = ans.question.category.name;
+      if (!categoryScores[catName]) {
+        categoryScores[catName] = { correct: 0, total: 0 };
+      }
+      categoryScores[catName].total++;
+      if (ans.isCorrect) {
+        categoryScores[catName].correct++;
+      }
+    }
+
+    let strongestCategory = 'N/A';
+    let maxAccuracy = -1;
+    for (const catName of Object.keys(categoryScores)) {
+      const catAcc = categoryScores[catName].correct / categoryScores[catName].total;
+      if (catAcc > maxAccuracy) {
+        maxAccuracy = catAcc;
+        strongestCategory = catName;
+      }
+    }
+
     return {
       matchId: match.id,
       totalScore: playerStats.totalScore,
       correctCount: playerStats.correctCount,
       wrongCount: playerStats.wrongCount,
-      avgAnswerTime: playerStats.avgAnswerTime,
+      avgAnswerTime: Number(playerStats.avgAnswerTime),
       accuracy: parseFloat(accuracy.toFixed(2)),
       startedAt: match.startedAt,
       endedAt: match.endedAt,
       status: match.status,
       questions: questionsWithUserAnswers,
+      xpEarned: totalXpEarned,
+      masteryIncreased,
+      currentLevel,
+      nextLevelProgress: currentXp % 1000,
+      bestCombo,
+      strongestCategory,
+      completedChallenges: completedInThisSession,
     };
   }
 }
