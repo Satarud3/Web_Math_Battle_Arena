@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getTier } from '../common/utils/tier';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -207,5 +208,49 @@ export class UsersService {
           : null,
       };
     });
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    const dataToUpdate: any = {};
+
+    if (dto.username && dto.username !== user.username) {
+      // Check if username is already taken
+      const existingUser = await this.prisma.user.findUnique({
+        where: { username: dto.username },
+      });
+      if (existingUser) {
+        throw new BadRequestException('Username sudah digunakan oleh gladiator lain!');
+      }
+      dataToUpdate.username = dto.username;
+    }
+
+    if (dto.avatarUrl !== undefined) {
+      dataToUpdate.avatarUrl = dto.avatarUrl;
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: dataToUpdate,
+      include: { role: true },
+    });
+
+    return {
+      message: 'Profil berhasil diperbarui',
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        avatarUrl: updatedUser.avatarUrl,
+        role: updatedUser.role.name,
+      },
+    };
   }
 }

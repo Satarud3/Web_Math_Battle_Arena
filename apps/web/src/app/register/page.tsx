@@ -132,6 +132,27 @@ export default function RegisterPage() {
             </button>
           </form>
 
+          {/* Google Sign In Divider */}
+          <div className="my-6 flex items-center justify-between text-xs text-text-muted/50">
+            <span className="h-[1px] w-[30%] bg-white/10" />
+            <span className="uppercase tracking-wider font-semibold">atau masuk dengan</span>
+            <span className="h-[1px] w-[30%] bg-white/10" />
+          </div>
+
+          {/* Google Sign In Button */}
+          <button
+            onClick={() => window.location.href = "http://localhost:4000/api/auth/google"}
+            className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-bg-surface/40 hover:bg-bg-surface/80 hover:border-white/20 text-sm font-bold text-white transition-all hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:-translate-y-0.5 cursor-pointer"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24">
+              <path
+                fill="#EA4335"
+                d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.529-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.1C18.281 1.256 15.426 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.839 11.57-11.785 0-.79-.085-1.393-.189-1.93H12.24z"
+              />
+            </svg>
+            <span>Masuk dengan Google</span>
+          </button>
+
           <div className="mt-8 text-center text-sm text-text-muted">
             Sudah punya akun?{" "}
             <Link href="/login" className="font-medium text-neon-blue hover:underline">

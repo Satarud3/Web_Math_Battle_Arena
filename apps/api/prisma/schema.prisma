@@ -77,7 +77,8 @@ model User {
   name             String
   username         String            @unique
   email            String            @unique
-  passwordHash     String            @map("password_hash")
+  passwordHash     String?           @map("password_hash")
+  googleId         String?           @unique @map("google_id")
   avatarUrl        String?           @map("avatar_url")
   isActive         Boolean           @default(true) @map("is_active")
   createdAt        DateTime          @default(now()) @map("created_at")

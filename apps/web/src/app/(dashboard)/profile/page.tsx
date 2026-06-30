@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { 
   User as UserIcon, Trophy, Activity, Award, Clock, 
-  ShieldAlert, Loader2, Play, Swords, TrendingUp, BrainCircuit, ChartNoAxesCombined, HelpCircle
+  ShieldAlert, Loader2, Play, Swords, TrendingUp, BrainCircuit, 
+  ChartNoAxesCombined, HelpCircle, Edit2, CheckCircle2, XCircle, Globe
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
@@ -62,10 +63,29 @@ interface AiCoachData {
   projectedRank: string;
 }
 
+const PRESET_AVATARS = [
+  { name: "Cyborg Red", url: "https://api.dicebear.com/7.x/bottts/svg?seed=cyborg_red&colors[]=red" },
+  { name: "Neon Matrix", url: "https://api.dicebear.com/7.x/bottts/svg?seed=neon_matrix&colors[]=blue" },
+  { name: "Cyber Samurai", url: "https://api.dicebear.com/7.x/bottts/svg?seed=cyber_samurai&colors[]=purple" },
+  { name: "Quantum Wizard", url: "https://api.dicebear.com/7.x/bottts/svg?seed=quantum_wizard&colors[]=green" },
+  { name: "Cyber Valkyrie", url: "https://api.dicebear.com/7.x/bottts/svg?seed=cyber_valkyrie&colors[]=amber" },
+  { name: "Math Gladiator", url: "https://api.dicebear.com/7.x/bottts/svg?seed=math_gladiator&colors[]=pink" },
+];
+
 export default function PersonalProfilePage() {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Profile fields state
+  const [profileUsername, setProfileUsername] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [tempUsername, setTempUsername] = useState("");
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [tempAvatarUrl, setTempAvatarUrl] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   // Stats tab data
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -112,6 +132,13 @@ export default function PersonalProfilePage() {
   }, [user]);
 
   useEffect(() => {
+    if (user) {
+      setProfileUsername(user.username);
+      setAvatarUrl(user.avatarUrl || null);
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (activeTab === "ai-coach" && !aiCoachData) {
       setLoadingCoach(true);
       api.get("/ai-coach/dashboard")
@@ -126,6 +153,56 @@ export default function PersonalProfilePage() {
         });
     }
   }, [activeTab, aiCoachData]);
+
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleSaveUsername = async () => {
+    if (!tempUsername || tempUsername.trim().length < 3) {
+      showToast("Username minimal harus 3 karakter", "error");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await api.patch("/users/profile", { username: tempUsername });
+      const updatedUser = response.data.user;
+      
+      // Update Zustand store and local state
+      setUser(updatedUser);
+      setProfileUsername(updatedUser.username);
+      setIsEditingUsername(false);
+      showToast("Username berhasil diperbarui!", "success");
+    } catch (err: any) {
+      console.error("Gagal memperbarui username", err);
+      const msg = err.response?.data?.message || "Gagal memperbarui username";
+      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveAvatar = async (selectedUrl: string) => {
+    setIsSaving(true);
+    try {
+      const response = await api.patch("/users/profile", { avatarUrl: selectedUrl });
+      const updatedUser = response.data.user;
+      
+      // Update Zustand store and local state
+      setUser(updatedUser);
+      setAvatarUrl(updatedUser.avatarUrl || null);
+      setIsAvatarModalOpen(false);
+      showToast("Foto profil berhasil diperbarui!", "success");
+    } catch (err: any) {
+      console.error("Gagal memperbarui avatar", err);
+      const msg = err.response?.data?.message || "Gagal memperbarui foto profil";
+      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const getTierGlowClass = (tier: string) => {
     switch (tier.toLowerCase()) {
@@ -178,18 +255,73 @@ export default function PersonalProfilePage() {
           <div className="glass-card rounded-3xl p-6 sm:p-8 mb-8 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden shadow-2xl">
             <div className="absolute top-0 right-0 w-64 h-64 bg-neon-blue/5 rounded-full blur-3xl -z-10" />
 
-            {/* Avatar Icon */}
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-bg-surface border-2 border-neon-blue/30 flex items-center justify-center font-black text-slate-300 text-3xl uppercase overflow-hidden shrink-0 font-heading shadow-inner">
-              {user?.name || user?.username ? (
-                <span>{(user.name || user.username || "?").slice(0, 1)}</span>
-              ) : <UserIcon className="w-10 h-10 text-slate-400" />}
+            {/* Avatar Icon with Hover Edit State */}
+            <div 
+              onClick={() => {
+                setTempAvatarUrl(avatarUrl || "");
+                setIsAvatarModalOpen(true);
+              }}
+              className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-neon-blue/30 overflow-hidden shrink-0 shadow-inner group cursor-pointer bg-bg-surface"
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-black text-slate-300 text-3xl uppercase font-heading">
+                  {(user?.name || user?.username || "?").slice(0, 1)}
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
+                <Edit2 className="w-4 h-4 text-neon-blue animate-pulse" />
+                <span className="text-[9px] font-bold text-white uppercase tracking-wider font-ui">Ubah</span>
+              </div>
             </div>
 
             <div className="text-center md:text-left min-w-0 flex-grow">
               <h2 className="text-2xl sm:text-3xl font-black text-slate-100 flex items-center justify-center md:justify-start gap-2.5 font-heading">
                 {user?.name}
               </h2>
-              <p className="text-slate-400 mt-1 font-medium text-sm font-ui">@{user?.username}</p>
+              
+              {/* Interactive Username Edit */}
+              {isEditingUsername ? (
+                <div className="mt-2 flex items-center justify-center md:justify-start gap-2">
+                  <input
+                    type="text"
+                    value={tempUsername}
+                    onChange={(e) => setTempUsername(e.target.value)}
+                    className="bg-bg-surface/80 border border-neon-blue/40 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:border-neon-blue font-ui"
+                    placeholder="Username baru"
+                    disabled={isSaving}
+                  />
+                  <button
+                    onClick={handleSaveUsername}
+                    disabled={isSaving}
+                    className="p-2 bg-neon-green/20 border border-neon-green/45 rounded-xl text-neon-green hover:bg-neon-green/30 transition-all cursor-pointer"
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  </button>
+                  <button
+                    onClick={() => setIsEditingUsername(false)}
+                    disabled={isSaving}
+                    className="p-2 bg-neon-red/20 border border-neon-red/45 rounded-xl text-neon-red hover:bg-neon-red/30 transition-all cursor-pointer"
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center md:justify-start gap-2 mt-1">
+                  <p className="text-slate-400 font-medium text-sm font-ui">@{profileUsername}</p>
+                  <button
+                    onClick={() => {
+                      setTempUsername(profileUsername);
+                      setIsEditingUsername(true);
+                    }}
+                    className="p-1 text-slate-500 hover:text-neon-blue transition-colors cursor-pointer"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               <div className="mt-3 flex flex-wrap justify-center md:justify-start gap-2">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-neon-blue/10 text-neon-blue border border-neon-blue/20 uppercase tracking-wider font-heading">
                   {user?.role}
@@ -261,7 +393,7 @@ export default function PersonalProfilePage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 
                 <div className="glass-card rounded-2xl p-5 shadow-lg glass-card-hover">
-                  <div className="text-slate-550 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-2 font-ui">
+                  <div className="text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-2 font-ui">
                     <Swords className="w-4 h-4 text-neon-blue" />
                     Total Match
                   </div>
@@ -270,7 +402,7 @@ export default function PersonalProfilePage() {
                 </div>
 
                 <div className="glass-card rounded-2xl p-5 shadow-lg glass-card-hover">
-                  <div className="text-slate-555 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-2 font-ui">
+                  <div className="text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-2 font-ui">
                     <Trophy className="w-4 h-4 text-neon-gold" />
                     Win Rate
                   </div>
@@ -281,7 +413,7 @@ export default function PersonalProfilePage() {
                 </div>
 
                 <div className="glass-card rounded-2xl p-5 shadow-lg glass-card-hover">
-                  <div className="text-slate-555 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-2 font-ui">
+                  <div className="text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-2 font-ui">
                     <Activity className="w-4 h-4 text-neon-green" />
                     Akurasi
                   </div>
@@ -292,7 +424,7 @@ export default function PersonalProfilePage() {
                 </div>
 
                 <div className="glass-card rounded-2xl p-5 shadow-lg flex flex-col justify-between glass-card-hover">
-                  <div className="text-slate-555 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-2 font-ui">
+                  <div className="text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-2 font-ui">
                     <Clock className="w-4 h-4 text-neon-purple" />
                     Stat Duel
                   </div>
@@ -575,7 +707,7 @@ export default function PersonalProfilePage() {
                           </span>
                         </div>
 
-                        <p className="text-[10px] text-slate-450 font-ui leading-relaxed">
+                        <p className="text-[10px] text-slate-455 font-ui leading-relaxed">
                           Perkiraan peringkat Anda di akhir bulan berdasarkan Win Rate Velocity saat ini.
                         </p>
                       </div>
@@ -630,6 +762,106 @@ export default function PersonalProfilePage() {
 
         </main>
       </PageTransition>
+
+      {/* CUSTOM EDIT AVATAR MODAL */}
+      <AnimatePresence>
+        {isAvatarModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAvatarModalOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="glass-card w-full max-w-lg rounded-3xl p-6 sm:p-8 relative z-10 border border-white/10 shadow-2xl"
+            >
+              <h3 className="text-xl font-black text-white font-heading tracking-wide uppercase mb-6 flex items-center gap-2">
+                <Globe className="w-5 h-5 text-neon-blue" />
+                Ubah Avatar Gladiator
+              </h3>
+
+              {/* Preset Avatars Grid */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                {PRESET_AVATARS.map((preset) => {
+                  const isSelected = tempAvatarUrl === preset.url;
+                  return (
+                    <div
+                      key={preset.name}
+                      onClick={() => setTempAvatarUrl(preset.url)}
+                      className={`relative aspect-square rounded-2xl bg-bg-surface/50 border-2 cursor-pointer transition-all overflow-hidden p-2 flex items-center justify-center ${
+                        isSelected
+                          ? "border-neon-blue bg-neon-blue/10 shadow-[0_0_15px_rgba(0,240,255,0.25)]"
+                          : "border-white/5 hover:border-white/20"
+                      }`}
+                    >
+                      <img src={preset.url} alt={preset.name} className="w-full h-full object-contain" />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Custom Avatar Input */}
+              <div className="mb-8">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-ui">
+                  Atau masukkan URL Foto Kustom
+                </label>
+                <input
+                  type="url"
+                  value={tempAvatarUrl}
+                  onChange={(e) => setTempAvatarUrl(e.target.value)}
+                  placeholder="https://example.com/foto.jpg"
+                  className="h-11 w-full rounded-xl border border-white/10 bg-bg-surface/60 px-4 text-sm text-white placeholder-text-muted/50 transition-all focus:border-neon-blue focus:shadow-[0_0_12px_rgba(0,240,255,0.15)] focus:outline-none font-ui"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 justify-end font-heading text-sm">
+                <button
+                  onClick={() => setIsAvatarModalOpen(false)}
+                  className="px-5 py-3 rounded-xl border border-white/10 hover:bg-white/5 text-slate-300 font-bold transition-all cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => handleSaveAvatar(tempAvatarUrl)}
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-gradient-to-r from-neon-blue to-neon-purple hover:shadow-[0_0_24px_rgba(0,240,255,0.3)] text-white font-black rounded-xl transition-all cursor-pointer flex items-center gap-2"
+                >
+                  {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Simpan Avatar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CUSTOM TOAST NOTIFICATION */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-xl border shadow-2xl flex items-center gap-3 text-sm font-bold font-ui ${
+              toast.type === "success"
+                ? "bg-neon-green/10 border-neon-green/30 text-neon-green shadow-[0_0_20px_rgba(34,197,94,0.15)]"
+                : "bg-neon-red/10 border-neon-red/30 text-neon-red shadow-[0_0_20px_rgba(239,68,68,0.15)]"
+            }`}
+          >
+            {toast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+            <span>{toast.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

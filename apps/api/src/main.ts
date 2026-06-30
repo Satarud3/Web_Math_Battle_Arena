@@ -1,26 +1,8 @@
+import './load-env';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
-import * as fs from 'fs';
-
-// Look for .env in current, parent, or grandparent directories to support monorepo paths
-const possiblePaths = [
-  path.join(process.cwd(), '.env'),
-  path.join(process.cwd(), '..', '.env'),
-  path.join(process.cwd(), '..', '..', '.env'),
-  path.join(__dirname, '..', '..', '..', '.env'),
-  path.join(__dirname, '..', '..', '..', '..', '.env'),
-];
-
-for (const envPath of possiblePaths) {
-  if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath });
-    break;
-  }
-}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
