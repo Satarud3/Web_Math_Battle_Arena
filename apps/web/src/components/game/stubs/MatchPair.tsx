@@ -29,10 +29,10 @@ export default function MatchPair({
   const [rightItems, setRightItems] = useState<string[]>([]);
   
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
-  const [selectedRight, setSelectedRight] = useState<string | null>(null);
+  const [selectedRightIdx, setSelectedRightIdx] = useState<number | null>(null);
 
-  // Map of left item -> right item
-  const [matches, setMatches] = useState<Record<string, string>>({});
+  // Map of left item -> index of matched item in rightItems
+  const [matches, setMatches] = useState<Record<string, number>>({});
 
   // Initialize and shuffle columns
   useEffect(() => {
@@ -50,11 +50,14 @@ export default function MatchPair({
         return arr;
       };
 
-      setLeftItems(shuffle(lefts));
-      setRightItems(shuffle(rights));
+      const shuffledLefts = shuffle(lefts);
+      const shuffledRights = shuffle(rights);
+
+      setLeftItems(shuffledLefts);
+      setRightItems(shuffledRights);
       setMatches({});
       setSelectedLeft(null);
-      setSelectedRight(null);
+      setSelectedRightIdx(null);
     }
   }, [questionData]);
 
@@ -66,60 +69,100 @@ export default function MatchPair({
       try {
         const parsed = JSON.parse(selectedAnswer);
         if (typeof parsed === "object" && parsed !== null) {
-          setMatches(parsed);
+          const restoredMatches: Record<string, number> = {};
+          const usedRightIndices = new Set<number>();
+          
+          for (const [leftText, rightText] of Object.entries(parsed)) {
+            const idx = rightItems.findIndex((val, i) => val === rightText && !usedRightIndices.has(i));
+            if (idx !== -1) {
+              restoredMatches[leftText] = idx;
+              usedRightIndices.add(idx);
+            }
+          }
+          setMatches(restoredMatches);
         }
       } catch (e) {
         // Not a valid JSON, ignore
       }
     }
-  }, [selectedAnswer]);
+  }, [selectedAnswer, rightItems]);
 
   const handleLeftClick = (item: string) => {
     if (disabled || !!feedback) return;
     
     // If already matched, clicking it will unmatch it
-    if (matches[item]) {
+    if (matches[item] !== undefined) {
       const newMatches = { ...matches };
       delete newMatches[item];
       setMatches(newMatches);
-      onSelectAnswer(Object.keys(newMatches).length > 0 ? JSON.stringify(newMatches) : "");
+      
+      const parentMatches: Record<string, string> = {};
+      for (const [lText, rIdx] of Object.entries(newMatches)) {
+        if (rightItems[rIdx] !== undefined) {
+          parentMatches[lText] = rightItems[rIdx];
+        }
+      }
+      onSelectAnswer(Object.keys(parentMatches).length > 0 ? JSON.stringify(parentMatches) : "");
       return;
     }
 
     setSelectedLeft(item);
 
-    // If a right item was already selected, pair them
-    if (selectedRight) {
-      const newMatches = { ...matches, [item]: selectedRight };
+    // If a right index was already selected, pair them
+    if (selectedRightIdx !== null) {
+      const newMatches = { ...matches, [item]: selectedRightIdx };
       setMatches(newMatches);
-      onSelectAnswer(JSON.stringify(newMatches));
+      
+      const parentMatches: Record<string, string> = {};
+      for (const [lText, rIdx] of Object.entries(newMatches)) {
+        if (rightItems[rIdx] !== undefined) {
+          parentMatches[lText] = rightItems[rIdx];
+        }
+      }
+      onSelectAnswer(JSON.stringify(parentMatches));
+      
       setSelectedLeft(null);
-      setSelectedRight(null);
+      setSelectedRightIdx(null);
     }
   };
 
-  const handleRightClick = (item: string) => {
+  const handleRightClick = (idx: number) => {
     if (disabled || !!feedback) return;
 
-    // Check if this right item is already matched
-    const matchedLeft = Object.keys(matches).find((key) => matches[key] === item);
+    // Check if this right index is already matched
+    const matchedLeft = Object.keys(matches).find((key) => matches[key] === idx);
     if (matchedLeft) {
       const newMatches = { ...matches };
       delete newMatches[matchedLeft];
       setMatches(newMatches);
-      onSelectAnswer(Object.keys(newMatches).length > 0 ? JSON.stringify(newMatches) : "");
+      
+      const parentMatches: Record<string, string> = {};
+      for (const [lText, rIdx] of Object.entries(newMatches)) {
+        if (rightItems[rIdx] !== undefined) {
+          parentMatches[lText] = rightItems[rIdx];
+        }
+      }
+      onSelectAnswer(Object.keys(parentMatches).length > 0 ? JSON.stringify(parentMatches) : "");
       return;
     }
 
-    setSelectedRight(item);
+    setSelectedRightIdx(idx);
 
     // If a left item was already selected, pair them
     if (selectedLeft) {
-      const newMatches = { ...matches, [selectedLeft]: item };
+      const newMatches = { ...matches, [selectedLeft]: idx };
       setMatches(newMatches);
-      onSelectAnswer(JSON.stringify(newMatches));
+      
+      const parentMatches: Record<string, string> = {};
+      for (const [lText, rIdx] of Object.entries(newMatches)) {
+        if (rightItems[rIdx] !== undefined) {
+          parentMatches[lText] = rightItems[rIdx];
+        }
+      }
+      onSelectAnswer(JSON.stringify(parentMatches));
+      
       setSelectedLeft(null);
-      setSelectedRight(null);
+      setSelectedRightIdx(null);
     }
   };
 
@@ -127,7 +170,7 @@ export default function MatchPair({
     if (disabled || !!feedback) return;
     setMatches({});
     setSelectedLeft(null);
-    setSelectedRight(null);
+    setSelectedRightIdx(null);
     onSelectAnswer("");
   };
 
@@ -162,16 +205,17 @@ export default function MatchPair({
         {/* Left Column */}
         <div className="space-y-3">
           <div className="text-center text-xs font-bold uppercase tracking-wider text-indigo-400 mb-1 font-heading">Kolom Pertanyaan</div>
-          {leftItems.map((item) => {
+          {leftItems.map((item, index) => {
             const isSelected = selectedLeft === item;
-            const matchedRight = matches[item];
-            const pairIndex = matchedRight ? Object.keys(matches).indexOf(item) % pairColors.length : -1;
+            const matchedRightIdx = matches[item];
+            const hasMatch = matchedRightIdx !== undefined;
+            const pairIndex = hasMatch ? Object.keys(matches).indexOf(item) % pairColors.length : -1;
             const hasFeedback = !!feedback;
 
             let cardStyle = "border-slate-800 bg-[#131A26] text-slate-300 hover:border-slate-700 hover:text-white";
             let badgeComponent = null;
 
-            if (matchedRight) {
+            if (hasMatch) {
               const colors = pairColors[pairIndex];
               cardStyle = `border-2 ${colors.border}`;
               badgeComponent = (
@@ -192,7 +236,7 @@ export default function MatchPair({
               <motion.button
                 whileHover={!disabled && !hasFeedback ? { scale: 1.01 } : {}}
                 whileTap={!disabled && !hasFeedback ? { scale: 0.99 } : {}}
-                key={`left-${item}`}
+                key={`left-${index}-${item}`}
                 type="button"
                 disabled={disabled || hasFeedback}
                 onClick={() => handleLeftClick(item)}
@@ -208,9 +252,9 @@ export default function MatchPair({
         {/* Right Column */}
         <div className="space-y-3">
           <div className="text-center text-xs font-bold uppercase tracking-wider text-purple-400 mb-1 font-heading">Kolom Jawaban</div>
-          {rightItems.map((item) => {
-            const isSelected = selectedRight === item;
-            const matchedLeft = Object.keys(matches).find((key) => matches[key] === item);
+          {rightItems.map((item, index) => {
+            const isSelected = selectedRightIdx === index;
+            const matchedLeft = Object.keys(matches).find((key) => matches[key] === index);
             const pairIndex = matchedLeft ? Object.keys(matches).indexOf(matchedLeft) % pairColors.length : -1;
             const hasFeedback = !!feedback;
 
@@ -238,10 +282,10 @@ export default function MatchPair({
               <motion.button
                 whileHover={!disabled && !hasFeedback ? { scale: 1.01 } : {}}
                 whileTap={!disabled && !hasFeedback ? { scale: 0.99 } : {}}
-                key={`right-${item}`}
+                key={`right-${index}-${item}`}
                 type="button"
                 disabled={disabled || hasFeedback}
-                onClick={() => handleRightClick(item)}
+                onClick={() => handleRightClick(index)}
                 className={`w-full text-left p-4 rounded-xl border font-medium flex items-center justify-between gap-3 transition-all duration-200 cursor-pointer ${cardStyle}`}
               >
                 <span className="font-semibold break-words">{item}</span>

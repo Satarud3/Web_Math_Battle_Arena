@@ -111,175 +111,206 @@ export default function ArenaPlayPage() {
     };
 
     const handleReconnectState = (data: ArenaStatePayload) => {
-      console.log("[Socket] Reconnect state received:", data);
-      setBattleMode(data.battleMode || "ARENA");
-      setQuestion({
-        id: data.questionId,
-        questionText: data.questionText,
-        type: data.type,
-        questionData: data.questionData,
-        options: data.options,
-      });
-      setCurrentNum(data.currentQuestionNumber);
-      setTotalQuestions(data.totalQuestions);
-      setEndTime(data.endTime);
-      setLoading(false);
+      try {
+        console.log("[Socket] Reconnect state received:", data);
+        setBattleMode(data.battleMode || "ARENA");
+        setQuestion({
+          id: data.questionId,
+          questionText: data.questionText,
+          type: data.type,
+          questionData: data.questionData,
+          options: data.options,
+        });
+        setCurrentNum(data.currentQuestionNumber);
+        setTotalQuestions(data.totalQuestions);
+        setEndTime(data.endTime);
+        setLoading(false);
 
-      if (data.hasAnswered) {
-        setSelectedOption(data.chosenOption ?? null);
-        setSubmitting(true);
-      } else {
-        setSelectedOption(null);
-        setSubmitting(false);
+        if (data.hasAnswered) {
+          setSelectedOption(data.chosenOption ?? null);
+          setSubmitting(true);
+        } else {
+          setSelectedOption(null);
+          setSubmitting(false);
+        }
+
+        // Restore scoreboard state
+        const initialPlayers: Record<string, PlayerState> = {};
+        const scores = data.scores || {};
+        const playersInfo = data.playersInfo || {};
+        const allUids = Array.from(new Set([...Object.keys(scores), ...Object.keys(playersInfo)]));
+
+        for (const uid of allUids) {
+          const score = scores[uid] !== undefined ? scores[uid] : (playersInfo[uid]?.score || 0);
+          const pInfo = playersInfo[uid] || {};
+          const username = uid === user?.id 
+            ? user.username 
+            : (pInfo.username || "Opponent");
+          
+          initialPlayers[uid] = {
+            username,
+            score: score as number,
+            hasAnswered: pInfo.hasAnswered || false,
+            ratingPoint: pInfo.ratingPoint || 1000,
+            tier: pInfo.tier || "Silver",
+          };
+        }
+        setPlayers(initialPlayers);
+      } catch (err) {
+        console.error("Error in handleReconnectState:", err);
       }
-
-      // Restore scoreboard state
-      const initialPlayers: Record<string, PlayerState> = {};
-      const scores = data.scores || {};
-      const playersInfo = data.playersInfo || {};
-      const allUids = Array.from(new Set([...Object.keys(scores), ...Object.keys(playersInfo)]));
-
-      for (const uid of allUids) {
-        const score = scores[uid] !== undefined ? scores[uid] : (playersInfo[uid]?.score || 0);
-        const pInfo = playersInfo[uid] || {};
-        const username = uid === user?.id 
-          ? user.username 
-          : (pInfo.username || "Opponent");
-        
-        initialPlayers[uid] = {
-          username,
-          score: score as number,
-          hasAnswered: pInfo.hasAnswered || false,
-          ratingPoint: pInfo.ratingPoint || 1000,
-          tier: pInfo.tier || "Silver",
-        };
-      }
-      setPlayers(initialPlayers);
     };
 
     const handleQuestionSent = (data: ArenaStatePayload) => {
-      console.log("[Socket] New question received:", data);
-      setQuestion({
-        id: data.questionId,
-        questionText: data.questionText,
-        type: data.type,
-        questionData: data.questionData,
-        options: data.options,
-      });
-      setCurrentNum(data.currentQuestionNumber);
-      setTotalQuestions(data.totalQuestions);
-      setEndTime(data.endTime);
-      setSelectedOption(null);
-      setFeedback(null);
-      setSubmitting(false);
-      setLoading(false);
+      try {
+        console.log("[Socket] New question received:", data);
+        setQuestion({
+          id: data.questionId,
+          questionText: data.questionText,
+          type: data.type,
+          questionData: data.questionData,
+          options: data.options,
+        });
+        setCurrentNum(data.currentQuestionNumber);
+        setTotalQuestions(data.totalQuestions);
+        setEndTime(data.endTime);
+        setSelectedOption(null);
+        setFeedback(null);
+        setSubmitting(false);
+        setLoading(false);
 
-      // Reset refined mechanics states
-      setIsSuddenDeath(false);
-      setCheckpointInfo(null);
+        // Reset refined mechanics states
+        setIsSuddenDeath(false);
+        setCheckpointInfo(null);
 
-      // Reset players status answered
-      setPlayers((prev) => {
-        const next = { ...prev };
-        for (const uid of Object.keys(next)) {
-          next[uid] = {
-            ...next[uid],
-            hasAnswered: false,
-            chosenOption: undefined,
-            isCorrect: undefined,
-            scoreEarned: undefined,
-          };
-        }
-        return next;
-      });
+        // Reset players status answered
+        setPlayers((prev) => {
+          const next = { ...prev };
+          for (const uid of Object.keys(next)) {
+            next[uid] = {
+              ...next[uid],
+              hasAnswered: false,
+              chosenOption: undefined,
+              isCorrect: undefined,
+              scoreEarned: undefined,
+            };
+          }
+          return next;
+        });
+      } catch (err) {
+        console.error("Error in handleQuestionSent:", err);
+      }
     };
 
     const handlePlayerAnswered = (data: { userId: string }) => {
-      console.log("[Socket] Player answered:", data.userId);
-      setPlayers((prev) => {
-        const next = { ...prev };
-        if (!next[data.userId]) {
-          const fallbackUsername = data.userId === user?.id ? (user?.username || "You") : "Lawan";
-          next[data.userId] = {
-            username: fallbackUsername,
-            score: 0,
-            hasAnswered: true,
-          };
-        } else {
-          next[data.userId] = {
-            ...next[data.userId],
-            hasAnswered: true,
-          };
-        }
-        return next;
-      });
+      try {
+        console.log("[Socket] Player answered:", data.userId);
+        setPlayers((prev) => {
+          const next = { ...prev };
+          if (!next[data.userId]) {
+            const fallbackUsername = data.userId === user?.id ? (user?.username || "You") : "Lawan";
+            next[data.userId] = {
+              username: fallbackUsername,
+              score: 0,
+              hasAnswered: true,
+            };
+          } else {
+            next[data.userId] = {
+              ...next[data.userId],
+              hasAnswered: true,
+            };
+          }
+          return next;
+        });
+      } catch (err) {
+        console.error("Error in handlePlayerAnswered:", err);
+      }
     };
 
     const handleAnswerResult = (data: AnswerResultPayload) => {
-      console.log("[Socket] Question answer result:", data);
-      setFeedback({
-        correctAnswer: data.correctAnswer,
-        explanation: data.explanation,
-      });
+      try {
+        console.log("[Socket] Question answer result:", data);
+        setFeedback({
+          correctAnswer: data.correctAnswer,
+          explanation: data.explanation,
+        });
 
-      const myResult = user?.id ? data.players[user.id] : undefined;
-      setComboCount((previous) => myResult?.isCorrect ? previous + 1 : 0);
+        const myResult = user?.id ? data.players[user.id] : undefined;
+        setComboCount((previous) => myResult?.isCorrect ? previous + 1 : 0);
 
-      // Update both players in state
-      setPlayers((prev) => {
-        const next = { ...prev };
-        for (const [uid, resultDetails] of Object.entries(data.players)) {
-          if (next[uid]) {
-            next[uid] = {
-              ...next[uid],
-              score: resultDetails.totalScore,
-              hasAnswered: true,
-              chosenOption: resultDetails.chosenOption,
-              isCorrect: resultDetails.isCorrect,
-              scoreEarned: resultDetails.scoreEarned,
-            };
-          } else {
-            const fallbackUsername = uid === user?.id ? (user?.username || "You") : "Lawan";
-            next[uid] = {
-              username: fallbackUsername,
-              score: resultDetails.totalScore,
-              hasAnswered: true,
-              chosenOption: resultDetails.chosenOption,
-              isCorrect: resultDetails.isCorrect,
-              scoreEarned: resultDetails.scoreEarned,
-            };
+        // Update both players in state
+        setPlayers((prev) => {
+          const next = { ...prev };
+          if (data.players) {
+            for (const [uid, resultDetails] of Object.entries(data.players)) {
+              if (next[uid]) {
+                next[uid] = {
+                  ...next[uid],
+                  score: resultDetails.totalScore,
+                  hasAnswered: true,
+                  chosenOption: resultDetails.chosenOption,
+                  isCorrect: resultDetails.isCorrect,
+                  scoreEarned: resultDetails.scoreEarned,
+                };
+              } else {
+                const fallbackUsername = uid === user?.id ? (user?.username || "You") : "Lawan";
+                next[uid] = {
+                  username: fallbackUsername,
+                  score: resultDetails.totalScore,
+                  hasAnswered: true,
+                  chosenOption: resultDetails.chosenOption,
+                  isCorrect: resultDetails.isCorrect,
+                  scoreEarned: resultDetails.scoreEarned,
+                };
+              }
+            }
           }
-        }
-        return next;
-      });
+          return next;
+        });
+      } catch (err) {
+        console.error("Error in handleAnswerResult:", err);
+      }
     };
 
     const handleMatchFinished = (data: MatchFinishedPayload) => {
-      console.log("[Socket] Match finished:", data);
-      
-      const myAchievements = user?.id && data.unlockedAchievements ? data.unlockedAchievements[user.id] || [] : [];
-      if (myAchievements.length > 0) {
-        setUnlockedAchievements(myAchievements);
-        // Delay redirect to allow reading
-        setTimeout(() => {
-          router.push(`/arena/${matchId}/result`);
-        }, 5000);
-      } else {
-        setTimeout(() => {
-          router.push(`/arena/${matchId}/result`);
-        }, 1500);
+      try {
+        console.log("[Socket] Match finished:", data);
+        
+        const myAchievements = user?.id && data.unlockedAchievements ? data.unlockedAchievements[user.id] || [] : [];
+        if (myAchievements.length > 0) {
+          setUnlockedAchievements(myAchievements);
+          // Delay redirect to allow reading
+          setTimeout(() => {
+            router.push(`/arena/${matchId}/result`);
+          }, 5000);
+        } else {
+          setTimeout(() => {
+            router.push(`/arena/${matchId}/result`);
+          }, 1500);
+        }
+      } catch (err) {
+        console.error("Error in handleMatchFinished:", err);
+        router.push(`/arena/${matchId}/result`);
       }
     };
 
     const handleStrategySuddenDeath = (data: { endTime: number; triggerUserId: string }) => {
-      console.log("[Socket] Strategy Sudden Death triggered!", data);
-      setEndTime(data.endTime);
-      setIsSuddenDeath(true);
+      try {
+        console.log("[Socket] Strategy Sudden Death triggered!", data);
+        setEndTime(data.endTime);
+        setIsSuddenDeath(true);
+      } catch (err) {
+        console.error("Error in handleStrategySuddenDeath:", err);
+      }
     };
 
     const handleMarathonCheckpoint = (data: { currentCheckpoint: number; leaderUserId: string; resumeTime: number }) => {
-      console.log("[Socket] Marathon Checkpoint reached!", data);
-      setCheckpointInfo(data);
+      try {
+        console.log("[Socket] Marathon Checkpoint reached!", data);
+        setCheckpointInfo(data);
+      } catch (err) {
+        console.error("Error in handleMarathonCheckpoint:", err);
+      }
     };
 
     socket.on("connect", onConnect);
