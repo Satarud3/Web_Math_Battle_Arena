@@ -393,6 +393,7 @@ export default function ArenaPlayPage() {
   const opponent = players[opponentId] || { username: "Lawan", score: 0, hasAnswered: false, ratingPoint: 1000, tier: "Silver" };
 
   const formatTimer = (secs: number) => {
+    if (typeof secs !== "number" || isNaN(secs)) return "0.0";
     return secs.toFixed(1);
   };
 

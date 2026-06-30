@@ -92,6 +92,8 @@ model User {
   createdQuestions Question[]        @relation("QuestionCreator")
   wonMatches       Match[]           @relation("MatchWinner")
   dailyChallenges  DailyChallenge[]
+  sentFriendships     Friendship[]      @relation("SentFriendships")
+  receivedFriendships Friendship[]      @relation("ReceivedFriendships")
 
   @@map("users")
 }
@@ -281,4 +283,24 @@ model DailyChallenge {
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("daily_challenges")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
+
+model Friendship {
+  id         String           @id @default(uuid()) @db.Uuid
+  senderId   String           @map("sender_id") @db.Uuid
+  receiverId String           @map("receiver_id") @db.Uuid
+  status     FriendshipStatus @default(PENDING)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  sender   User @relation("SentFriendships", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedFriendships", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@map("friendships")
 }

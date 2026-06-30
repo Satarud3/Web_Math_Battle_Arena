@@ -12,6 +12,7 @@ import { AdminModule } from './admin/admin.module';
 import { PracticeModule } from './practice/practice.module';
 import { AchievementsModule } from './achievements/achievements.module';
 import { AiCoachModule } from './ai-coach/ai-coach.module';
+import { FriendsModule } from './friends/friends.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AiCoachModule } from './ai-coach/ai-coach.module';
     PracticeModule,
     AchievementsModule,
     AiCoachModule,
+    FriendsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

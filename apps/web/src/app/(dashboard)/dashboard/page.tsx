@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { 
   Activity, Play, Swords, Award, Clock, Target, ShieldAlert, Sparkles,
   Brain, RadioTower, Lock, Bot, CircleCheckBig, ChevronRight, Gauge, Flame,
-  BrainCircuit, Loader2
+  BrainCircuit, Loader2, Users, X
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -18,6 +18,7 @@ import RankBadge from "@/components/game/RankBadge";
 import AchievementGrid, { type Achievement } from "@/components/AchievementGrid";
 import { getApiStatus } from "@/lib/errors";
 import PageTransition from "@/components/PageTransition";
+import SocialPanel from "@/components/social/SocialPanel";
 
 const ThreeCanvas = dynamic(() => import("@/components/ThreeCanvas"), { ssr: false });
 const EnergyCoreSphereScene = dynamic(() => import("@/components/EnergyCoreSphere"), { ssr: false });
@@ -97,6 +98,7 @@ export default function DashboardPage() {
   const [recentMatches, setRecentMatches] = useState<MatchRecord[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [aiCoach, setAiCoach] = useState<any | null>(null);
+  const [isSocialOpen, setIsSocialOpen] = useState(false);
 
   const answeredToday = Math.min(10, stats?.totalQuestionsAnswered || 0);
   const questAccuracy = Math.min(100, Math.round(Number(stats?.accuracy || 0)));
@@ -560,20 +562,26 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Synced Achievements Column */}
-            <div className="glass-card rounded-2xl p-6 flex flex-col justify-between">
-              <div>
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <h3 className="flex items-center gap-2 text-base font-bold tracking-tight text-white font-heading">
-                    <Award size={16} className="text-neon-gold animate-pulse" />
-                    Pencapaian
-                  </h3>
-                  <Link href="/profile#achievements" className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-neon-cyan hover:text-white transition-colors font-heading">
-                    Lihat Semua
-                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
-                  </Link>
+            {/* Right Column: Social Panel & Achievements */}
+            <div className="flex flex-col gap-8 lg:col-span-1">
+              <div className="hidden lg:block">
+                <SocialPanel />
+              </div>
+
+              <div className="glass-card rounded-2xl p-6 flex flex-col justify-between">
+                <div>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <h3 className="flex items-center gap-2 text-base font-bold tracking-tight text-white font-heading">
+                      <Award size={16} className="text-neon-gold animate-pulse" />
+                      Pencapaian
+                    </h3>
+                    <Link href="/profile#achievements" className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-neon-cyan hover:text-white transition-colors font-heading">
+                      Lihat Semua
+                      <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                    </Link>
+                  </div>
+                  <AchievementGrid achievements={achievements} loading={loadingAchievements} compact limit={3} showHeader={false} />
                 </div>
-                <AchievementGrid achievements={achievements} loading={loadingAchievements} compact limit={3} showHeader={false} />
               </div>
             </div>
 
@@ -581,6 +589,57 @@ export default function DashboardPage() {
 
         </main>
       </PageTransition>
+
+      {/* Mobile Floating Action Button */}
+      <button
+        onClick={() => setIsSocialOpen(true)}
+        className="lg:hidden fixed bottom-6 right-6 z-45 w-14 h-14 bg-gradient-to-r from-neon-blue to-neon-purple text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.4)] border border-neon-blue/45 hover:scale-110 active:scale-95 transition-all cursor-pointer"
+        aria-label="Buka panel sosial"
+      >
+        <Users size={24} />
+      </button>
+
+      {/* Mobile Social Drawer (Bottom Sheet) */}
+      <AnimatePresence>
+        {isSocialOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSocialOpen(false)}
+              className="lg:hidden fixed inset-0 bg-black/80 z-40 backdrop-blur-sm"
+            />
+
+            {/* Sliding Bottom Sheet */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-main border-t border-white/10 rounded-t-3xl max-h-[85vh] overflow-y-auto flex flex-col p-4 shadow-[0_-8px_32px_rgba(0,0,0,0.5)]"
+            >
+              {/* Drawer handle indicator */}
+              <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4" />
+
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-xs font-black text-slate-450 uppercase tracking-widest">MENU SOSIAL</span>
+                <button
+                  onClick={() => setIsSocialOpen(false)}
+                  className="p-1 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pb-6">
+                <SocialPanel />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Footer */}
       <footer className="border-t border-white/5 py-5 bg-bg-main/80 relative z-10">

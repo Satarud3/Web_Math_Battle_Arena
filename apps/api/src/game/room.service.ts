@@ -122,6 +122,9 @@ export class RoomService {
   private server: Server;
   private rooms: Map<string, GameRoom> = new Map();
 
+  public onPlayerStatusChange?: (userId: string, status: 'ONLINE' | 'OFFLINE' | 'IN_GAME') => void | Promise<void>;
+  public checkIsPlayerConnected?: (userId: string) => boolean;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly achievementsService: AchievementsService,
@@ -186,6 +189,17 @@ export class RoomService {
     };
 
     this.rooms.set(matchId, room);
+
+    // Update status to IN_GAME (wrapped in try-catch to prevent hanging)
+    try {
+      if (this.onPlayerStatusChange) {
+        void this.onPlayerStatusChange(player1.userId, 'IN_GAME');
+        void this.onPlayerStatusChange(player2.userId, 'IN_GAME');
+      }
+    } catch (e) {
+      console.error('[RoomService] Gagal memperbarui status pemain ke IN_GAME:', e);
+    }
+
     this.sendQuestion(matchId);
   }
 
@@ -638,6 +652,19 @@ export class RoomService {
       },
     });
 
+    // Revert status to ONLINE/OFFLINE based on connection (wrapped in try-catch to prevent hanging)
+    try {
+      if (this.onPlayerStatusChange) {
+        for (const player of players) {
+          const isConnected = this.checkIsPlayerConnected?.(player.userId) ?? false;
+          const newStatus = isConnected ? 'ONLINE' : 'OFFLINE';
+          void this.onPlayerStatusChange(player.userId, newStatus);
+        }
+      }
+    } catch (e) {
+      console.error('[RoomService] Gagal mengembalikan status pemain setelah pertandingan selesai:', e);
+    }
+
     // Strict Cleanup for memory leak prevention
     this.rooms.delete(matchId);
   }
@@ -779,6 +806,19 @@ export class RoomService {
         [players[1].userId]: p2Achievements,
       },
     });
+
+    // Revert status to ONLINE/OFFLINE based on connection (wrapped in try-catch to prevent hanging)
+    try {
+      if (this.onPlayerStatusChange) {
+        for (const p of players) {
+          const isConnected = this.checkIsPlayerConnected?.(p.userId) ?? false;
+          const newStatus = isConnected ? 'ONLINE' : 'OFFLINE';
+          void this.onPlayerStatusChange(p.userId, newStatus);
+        }
+      }
+    } catch (e) {
+      console.error('[RoomService] Gagal mengembalikan status pemain setelah pemain keluar:', e);
+    }
 
     // Clean up map room
     this.rooms.delete(matchId);

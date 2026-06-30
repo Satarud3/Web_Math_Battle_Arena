@@ -15,6 +15,7 @@ import { RoomService } from './room.service';
 import * as cookie from 'cookie';
 import { Inject, forwardRef } from '@nestjs/common';
 import { getTier } from '../common/utils/tier';
+import { PrismaService } from '../prisma/prisma.service';
 
 const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
 if (process.env.FRONTEND_URL) {
@@ -33,8 +34,13 @@ export class GameGateway
   @WebSocketServer()
   server: Server;
 
+  public static instance: GameGateway;
+  public static userStatus = new Map<string, 'ONLINE' | 'OFFLINE' | 'IN_GAME'>();
+  public static userSockets = new Map<string, string>();
+
   constructor(
     private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
     @Inject(forwardRef(() => MatchmakingService))
     private readonly matchmakingService: MatchmakingService,
     @Inject(forwardRef(() => RoomService))
@@ -42,36 +48,61 @@ export class GameGateway
   ) {}
 
   afterInit(server: Server) {
+    GameGateway.instance = this;
     console.log('[Socket.IO] GameGateway Initialized');
     this.roomService.setServer(server);
     this.matchmakingService.setServer(server);
+
+    // Register callbacks to avoid circular dependencies
+    this.roomService.onPlayerStatusChange = async (userId, status) => {
+      try {
+        GameGateway.userStatus.set(userId, status);
+        await this.broadcastStatusToFriends(userId, status);
+      } catch (err) {
+        console.error(`[GameGateway] Gagal memproses perubahan status untuk ${userId}:`, err);
+      }
+    };
+
+    this.roomService.checkIsPlayerConnected = (userId) => {
+      return GameGateway.userSockets.has(userId);
+    };
   }
 
-  handleConnection(client: Socket) {
-    const cookieHeader = client.handshake.headers.cookie;
-    if (!cookieHeader) {
-      console.log(`[Socket.IO] Connection rejected: No cookie header`);
-      client.disconnect();
-      return;
+  async handleConnection(client: Socket) {
+    // Extract token from auth handshake, Authorization header, or cookie
+    let token = client.handshake.auth?.token || client.handshake.headers?.authorization;
+    if (token && token.startsWith('Bearer ')) {
+      token = token.slice(7);
+    }
+    if (!token && client.handshake.headers?.cookie) {
+      const cookies = cookie.parse(client.handshake.headers.cookie);
+      token = cookies['access_token'];
     }
 
-    const cookies = cookie.parse(cookieHeader);
-    const token = cookies['access_token'];
     if (!token) {
-      console.log(`[Socket.IO] Connection rejected: access_token cookie not found`);
+      console.log(`[Socket.IO] Connection rejected: Token not found`);
       client.disconnect();
       return;
     }
 
     try {
       const payload = this.jwtService.verify(token);
+      const userId = payload.sub || payload.id;
+
       // Attach user details to socket instance
       client.data.user = {
-        id: payload.sub || payload.id, // handle both sub or id payload structures
+        id: userId,
         username: payload.username,
         role: payload.role,
       };
       console.log(`[Socket.IO] Player connected: @${payload.username} (${client.id})`);
+
+      // Set user status to ONLINE
+      GameGateway.userStatus.set(userId, 'ONLINE');
+      GameGateway.userSockets.set(userId, client.id);
+
+      // Broadcast status change to friends
+      await this.broadcastStatusToFriends(userId, 'ONLINE');
 
       // Check if user has an active match running in RoomService
       // and reconnect them automatically
@@ -124,10 +155,18 @@ export class GameGateway
     }
   }
 
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
     if (client.data && client.data.user) {
       const user = client.data.user;
       console.log(`[Socket.IO] Player disconnected: @${user.username} (${client.id})`);
+
+      // Set user status to OFFLINE
+      GameGateway.userStatus.set(user.id, 'OFFLINE');
+      GameGateway.userSockets.delete(user.id);
+
+      // Broadcast status change to friends
+      await this.broadcastStatusToFriends(user.id, 'OFFLINE');
+
       this.matchmakingService.leaveQueue(user.id);
 
       // Handle active match disconnect with 5s grace period
@@ -145,6 +184,34 @@ export class GameGateway
           }
         }, 5000);
       }
+    }
+  }
+
+  async broadcastStatusToFriends(userId: string, status: 'ONLINE' | 'OFFLINE' | 'IN_GAME') {
+    try {
+      const friendships = await this.prisma.friendship.findMany({
+        where: {
+          status: 'ACCEPTED',
+          OR: [
+            { senderId: userId },
+            { receiverId: userId },
+          ],
+        },
+      });
+
+      const friendIds = friendships.map(f => f.senderId === userId ? f.receiverId : f.senderId);
+
+      for (const friendId of friendIds) {
+        const friendSocketId = GameGateway.userSockets.get(friendId);
+        if (friendSocketId) {
+          this.server.to(friendSocketId).emit('friend_status_change', {
+            userId,
+            status,
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`Gagal memancarkan status teman untuk user ${userId}:`, err);
     }
   }
 
