@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsInt, Min, IsIn } from 'class-validator';
-import { Difficulty } from '@prisma/client';
+import { IsString, IsNotEmpty, IsOptional, IsEnum, IsInt, Min } from 'class-validator';
+import { Difficulty, QuestionType } from '@prisma/client';
 
 export class CreateQuestionDto {
   @IsString()
@@ -10,26 +10,22 @@ export class CreateQuestionDto {
   @IsNotEmpty({ message: 'Teks soal tidak boleh kosong' })
   questionText: string;
 
-  @IsString()
-  @IsNotEmpty({ message: 'Pilihan A tidak boleh kosong' })
-  optionA: string;
+  @IsOptional()
+  options?: any;
 
   @IsString()
-  @IsNotEmpty({ message: 'Pilihan B tidak boleh kosong' })
-  optionB: string;
+  @IsOptional()
+  correctAnswer?: string;
 
-  @IsString()
-  @IsNotEmpty({ message: 'Pilihan C tidak boleh kosong' })
-  optionC: string;
+  @IsEnum(QuestionType, { message: 'Type harus berupa tipe soal yang valid' })
+  @IsOptional()
+  type?: QuestionType;
 
-  @IsString()
-  @IsNotEmpty({ message: 'Pilihan D tidak boleh kosong' })
-  optionD: string;
+  @IsOptional()
+  questionData?: any;
 
-  @IsString()
-  @IsNotEmpty({ message: 'Jawaban benar tidak boleh kosong' })
-  @IsIn(['A', 'B', 'C', 'D'], { message: 'Jawaban benar harus berupa salah satu dari: A, B, C, atau D' })
-  correctAnswer: string;
+  @IsOptional()
+  answerData?: any;
 
   @IsString()
   @IsOptional()

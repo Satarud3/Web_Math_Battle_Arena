@@ -60,6 +60,7 @@ export class GameController {
       winnerUserId: match.winnerUserId,
       startedAt: match.startedAt,
       endedAt: match.endedAt,
+      totalQuestions: match.totalQuestions,
       players: playersResult,
     };
   }

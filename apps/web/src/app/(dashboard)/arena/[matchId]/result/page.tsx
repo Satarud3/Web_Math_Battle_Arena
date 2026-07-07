@@ -25,6 +25,7 @@ interface DuelResultData {
   winnerUserId: string | null;
   startedAt: string;
   endedAt: string;
+  totalQuestions?: number;
   players: PlayerDuelResult[];
 }
 
@@ -210,13 +211,13 @@ export default function DuelResultPage() {
             {/* Row 2: Accuracy */}
             <div className="grid grid-cols-3 text-center items-center">
               <span className="text-lg sm:text-2xl font-black text-white text-left">
-                {me.correctCount} <span className="text-xs font-medium text-slate-500">/ 10</span>
+                {me.correctCount} <span className="text-xs font-medium text-slate-500">/ {result.totalQuestions || 10}</span>
               </span>
               <span className="text-xs font-semibold text-slate-400 flex items-center justify-center gap-1.5">
                 <Target className="w-4 h-4 text-emerald-400" /> Akurasi Benar
               </span>
               <span className="text-lg sm:text-2xl font-black text-white text-right">
-                {opponent.correctCount} <span className="text-xs font-medium text-slate-500">/ 10</span>
+                {opponent.correctCount} <span className="text-xs font-medium text-slate-500">/ {result.totalQuestions || 10}</span>
               </span>
             </div>
 

@@ -194,16 +194,16 @@ export default function AdminCategoriesPage() {
           </div>
         )}
 
-        <div className="grid gap-3 rounded-xl border border-slate-800 bg-[#0E131F] p-4 sm:grid-cols-[1fr_190px]">
+        <div className="grid gap-3 rounded-2xl border border-white/10 bg-[#0E131F]/80 backdrop-blur p-4 sm:grid-cols-[1fr_190px] shadow-xl">
           <label className="relative">
             <span className="sr-only">Cari kategori</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari nama atau deskripsi kategori..." className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#131A26] py-2.5 pl-10 pr-4 text-xs text-white outline-none transition focus:border-indigo-500" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari nama atau deskripsi kategori..." className="min-h-11 w-full rounded-xl border border-white/10 bg-[#131A26] py-2.5 pl-10 pr-4 text-xs text-white outline-none transition focus:border-indigo-500" />
           </label>
           <label className="relative">
             <span className="sr-only">Urutkan kategori</span>
-            <ArrowDownUp className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-            <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as "name" | "questions")} className="min-h-11 w-full appearance-none rounded-lg border border-slate-700 bg-[#131A26] py-2.5 pl-10 pr-4 text-xs font-semibold text-white outline-none transition focus:border-indigo-500">
+            <ArrowDownUp className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as "name" | "questions")} className="min-h-11 w-full appearance-none rounded-xl border border-white/10 bg-[#131A26] py-2.5 pl-10 pr-4 text-xs font-semibold text-white outline-none transition focus:border-indigo-500 cursor-pointer">
               <option value="name">Urutkan: Nama</option>
               <option value="questions">Urutkan: Jumlah Soal</option>
             </select>
@@ -211,7 +211,7 @@ export default function AdminCategoriesPage() {
         </div>
 
         {/* Table / Loader */}
-        <div className="bg-[#0E131F] border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+        <div className="bg-[#0E131F]/80 backdrop-blur border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
           {loading ? (
             <div className="p-10 space-y-4">
               <div className="h-6 w-1/4 bg-[#141B2D] rounded animate-pulse" />

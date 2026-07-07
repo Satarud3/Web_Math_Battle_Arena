@@ -50,21 +50,17 @@ export class QuestionsService {
       throw new NotFoundException('Kategori tidak ditemukan');
     }
 
-    const options = {
-      A: dto.optionA,
-      B: dto.optionB,
-      C: dto.optionC,
-      D: dto.optionD,
-    };
-
     // Execute atomically inside transaction
     return this.prisma.$transaction(async (tx) => {
       return tx.question.create({
         data: {
           categoryId: dto.categoryId,
           questionText: dto.questionText,
-          options,
-          correctAnswer: dto.correctAnswer,
+          options: dto.options !== undefined ? dto.options : null,
+          correctAnswer: dto.correctAnswer || null,
+          type: dto.type || 'MULTIPLE_CHOICE',
+          questionData: dto.questionData !== undefined ? dto.questionData : null,
+          answerData: dto.answerData !== undefined ? dto.answerData : null,
           explanation: dto.explanation || null,
           difficulty: dto.difficulty,
           baseScore: dto.baseScore,
@@ -105,25 +101,21 @@ export class QuestionsService {
       }
     }
 
-    const existingOptions = question.options as any;
-    const options = {
-      A: dto.optionA !== undefined ? dto.optionA : existingOptions.A,
-      B: dto.optionB !== undefined ? dto.optionB : existingOptions.B,
-      C: dto.optionC !== undefined ? dto.optionC : existingOptions.C,
-      D: dto.optionD !== undefined ? dto.optionD : existingOptions.D,
-    };
-
-    // Map DTO flat properties to database JSON column properties
-    const updateData: any = { ...dto };
-    delete updateData.optionA;
-    delete updateData.optionB;
-    delete updateData.optionC;
-    delete updateData.optionD;
-    updateData.options = options;
-
     return this.prisma.question.update({
       where: { id },
-      data: updateData,
+      data: {
+        categoryId: dto.categoryId !== undefined ? dto.categoryId : question.categoryId,
+        questionText: dto.questionText !== undefined ? dto.questionText : question.questionText,
+        options: dto.options !== undefined ? dto.options : question.options,
+        correctAnswer: dto.correctAnswer !== undefined ? dto.correctAnswer : question.correctAnswer,
+        type: dto.type !== undefined ? dto.type : question.type,
+        questionData: dto.questionData !== undefined ? dto.questionData : question.questionData,
+        answerData: dto.answerData !== undefined ? dto.answerData : question.answerData,
+        explanation: dto.explanation !== undefined ? dto.explanation : question.explanation,
+        difficulty: dto.difficulty !== undefined ? dto.difficulty : question.difficulty,
+        baseScore: dto.baseScore !== undefined ? dto.baseScore : question.baseScore,
+        isActive: dto.isActive !== undefined ? dto.isActive : question.isActive,
+      },
       include: {
         category: true,
       },

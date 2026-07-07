@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const menuItems = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/users", label: "Kelola User", icon: Users, isPlaceholder: true },
+    { href: "/admin/users", label: "Kelola User", icon: Users },
     { href: "/admin/categories", label: "Kelola Kategori", icon: FolderPlus },
     { href: "/admin/questions", label: "Kelola Soal", icon: BookOpenCheck },
     { href: "/admin/matches", label: "Riwayat Match", icon: History, isPlaceholder: true },

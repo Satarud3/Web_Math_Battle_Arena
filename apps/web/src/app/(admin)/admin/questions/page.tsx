@@ -200,7 +200,7 @@ export default function AdminQuestionsPage() {
         </div>
 
         {/* FilterBar & Search */}
-        <div className="sticky top-3 z-20 p-4 bg-[#0E131F]/95 backdrop-blur border border-slate-800 rounded-xl grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 shadow-md">
+        <div className="sticky top-3 z-20 p-4 bg-[#0E131F]/80 backdrop-blur border border-white/10 rounded-2xl grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 shadow-xl">
           {/* Search Input */}
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 pointer-events-none">
@@ -211,7 +211,7 @@ export default function AdminQuestionsPage() {
               placeholder="Cari teks soal..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#131A26] border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-[#131A26] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
 
@@ -220,7 +220,7 @@ export default function AdminQuestionsPage() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full bg-[#131A26] border border-slate-700 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+              className="w-full bg-[#131A26] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
             >
               <option value="">Semua Kategori</option>
               {categories.map((cat) => (
@@ -235,7 +235,7 @@ export default function AdminQuestionsPage() {
               id="question-status-filter"
               value={selectedStatus}
               onChange={(event) => setSelectedStatus(event.target.value as "" | "ACTIVE" | "INACTIVE")}
-              className="w-full min-h-11 bg-[#131A26] border border-slate-700 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+              className="w-full min-h-11 bg-[#131A26] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
             >
               <option value="">Semua Status</option>
               <option value="ACTIVE">Aktif</option>
@@ -248,7 +248,7 @@ export default function AdminQuestionsPage() {
             <select
               value={selectedDifficulty}
               onChange={(e) => setSelectedDifficulty(e.target.value)}
-              className="w-full bg-[#131A26] border border-slate-700 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+              className="w-full bg-[#131A26] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
             >
               <option value="">Semua Kesulitan</option>
               <option value="EASY">Mudah (EASY)</option>
@@ -266,7 +266,7 @@ export default function AdminQuestionsPage() {
         )}
 
         {/* Questions Table */}
-        <div className="bg-[#0E131F] border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+        <div className="bg-[#0E131F]/80 backdrop-blur border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
           {loading ? (
             <div className="p-10 space-y-4">
               <div className="h-6 w-1/4 bg-[#141B2D] rounded animate-pulse" />
