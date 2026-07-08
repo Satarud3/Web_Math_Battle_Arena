@@ -6,11 +6,16 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { GoogleStrategy } from './google.strategy';
 
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret && process.env.NODE_ENV === 'production') {
+  throw new Error('FATAL CONFIGURATION ERROR: JWT_SECRET environment variable must be defined in production!');
+}
+
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'change_this_secret',
+      secret: jwtSecret || 'change_this_secret',
       signOptions: {
         expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any,
       },

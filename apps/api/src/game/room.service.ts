@@ -4,90 +4,7 @@ import { Server } from 'socket.io';
 import { MatchMode, MatchStatus, MatchResult, Question } from '@prisma/client';
 import { getTier } from '../common/utils/tier';
 import { AchievementsService } from '../achievements/achievements.service';
-
-function checkAnswer(type: string, submitted: string, question: any): boolean {
-  const cleanSubmitted = (submitted || '').trim().toUpperCase();
-  
-  // Extract correct answer value from answerData or correctAnswer fallback
-  let correctVal = '';
-  if (question.answerData) {
-    if (typeof question.answerData === 'string') {
-      correctVal = question.answerData;
-    } else if (typeof question.answerData === 'object' && (question.answerData as any).value !== undefined) {
-      correctVal = String((question.answerData as any).value);
-    } else {
-      correctVal = JSON.stringify(question.answerData);
-    }
-  } else {
-    correctVal = question.correctAnswer || '';
-  }
-  
-  const cleanCorrect = correctVal.trim().toUpperCase();
-
-  if (type === 'MULTIPLE_CHOICE' || type === 'TRUE_FALSE') {
-    return cleanSubmitted === cleanCorrect;
-  }
-  
-  if (type === 'FILL_BLANK') {
-    const subNum = parseFloat(cleanSubmitted);
-    const corrNum = parseFloat(cleanCorrect);
-    if (!isNaN(subNum) && !isNaN(corrNum)) {
-      return subNum === corrNum;
-    }
-    return cleanSubmitted === cleanCorrect;
-  }
-
-  if (type === 'SELECT_MULTIPLE' || type === 'DRAG_ORDER') {
-    if (type === 'SELECT_MULTIPLE') {
-      const subKeys = cleanSubmitted.split(',').map(k => k.trim()).filter(Boolean).sort().join(',');
-      const corrKeys = cleanCorrect.split(',').map(k => k.trim()).filter(Boolean).sort().join(',');
-      return subKeys === corrKeys;
-    }
-    return cleanSubmitted === cleanCorrect;
-  }
-
-  if (type === 'MATCH_PAIR') {
-    try {
-      const subObj = JSON.parse(submitted);
-      const corrObj = typeof question.answerData === 'string' 
-        ? JSON.parse(question.answerData) 
-        : question.answerData;
-      
-      const subKeys = Object.keys(subObj).sort();
-      const corrKeys = Object.keys(corrObj).sort();
-      
-      if (subKeys.length !== corrKeys.length) return false;
-      
-      for (const k of subKeys) {
-        // Find matching key in corrObj with case-insensitive check
-        const corrKey = corrKeys.find(ck => ck.trim().toUpperCase() === k.trim().toUpperCase());
-        if (!corrKey) return false;
-        
-        const subVal = String(subObj[k]).trim().toUpperCase();
-        const corrVal = String(corrObj[corrKey]).trim().toUpperCase();
-        if (subVal !== corrVal) return false;
-      }
-      return true;
-    } catch (e) {
-      return cleanSubmitted === cleanCorrect;
-    }
-  }
-
-  return cleanSubmitted === cleanCorrect;
-}
-
-function getCorrectAnswerString(question: any): string {
-  if (question.answerData) {
-    if (typeof question.answerData === 'string') {
-      return question.answerData;
-    } else if (typeof question.answerData === 'object' && (question.answerData as any).value !== undefined) {
-      return String((question.answerData as any).value);
-    } else {
-      return JSON.stringify(question.answerData);
-    }
-  }
-  return question.correctAnswer || '';
-}
+import { checkAnswer, getCorrectAnswerString } from '../common/utils/answer';
 
 export interface RoomPlayer {
   userId: string;
@@ -112,6 +29,8 @@ export interface GameRoom {
   currentQuestionIndex: number; // 0-based index
   questionStartTime: number; // Date.now() timestamp
   timeoutRef?: NodeJS.Timeout;
+  transitionTimeoutRef?: NodeJS.Timeout;
+  checkpointTimeoutRef?: NodeJS.Timeout;
   questions: Map<string, Question>; // key: questionId
   battleMode: string;
   endTime?: number;
@@ -455,7 +374,8 @@ export class RoomService {
       });
 
       // Wait 3 seconds, then advance
-      setTimeout(() => {
+      if (room.transitionTimeoutRef) clearTimeout(room.transitionTimeoutRef);
+      room.transitionTimeoutRef = setTimeout(() => {
         try {
           this.advanceQuestion(matchId);
         } catch (err) {
@@ -505,7 +425,8 @@ export class RoomService {
             resumeTime: Date.now() + 7000,
           });
 
-          setTimeout(() => {
+          if (room.checkpointTimeoutRef) clearTimeout(room.checkpointTimeoutRef);
+          room.checkpointTimeoutRef = setTimeout(() => {
             try {
               room.currentQuestionIndex++;
               this.sendQuestion(matchId);
@@ -529,6 +450,8 @@ export class RoomService {
 
     // Clear timeout references
     if (room.timeoutRef) clearTimeout(room.timeoutRef);
+    if (room.transitionTimeoutRef) clearTimeout(room.transitionTimeoutRef);
+    if (room.checkpointTimeoutRef) clearTimeout(room.checkpointTimeoutRef);
 
     const players = Object.values(room.players);
     if (players.length < 2) {
@@ -599,6 +522,10 @@ export class RoomService {
 
         // 2. Update MatchPlayer records
         for (const p of players) {
+          // Pessimistic Row Locking to prevent Lost Updates under high concurrency
+          await tx.$executeRaw`SELECT 1 FROM rankings WHERE user_id = ${p.userId}::uuid FOR UPDATE`;
+          await tx.$executeRaw`SELECT 1 FROM user_stats WHERE user_id = ${p.userId}::uuid FOR UPDATE`;
+
           const result = p.userId === winnerId ? MatchResult.WIN : winnerId === null ? MatchResult.DRAW : MatchResult.LOSE;
           const avgAnswerTime = p.correctCount + p.wrongCount > 0 ? p.totalAnswerTimeMs / 1000 / (p.correctCount + p.wrongCount) : 0;
 
@@ -752,6 +679,8 @@ export class RoomService {
 
     // Clear timeout references
     if (room.timeoutRef) clearTimeout(room.timeoutRef);
+    if (room.transitionTimeoutRef) clearTimeout(room.transitionTimeoutRef);
+    if (room.checkpointTimeoutRef) clearTimeout(room.checkpointTimeoutRef);
 
     const players = Object.values(room.players);
     const stayingPlayer = players.find((p) => p.userId !== leavingUserId);

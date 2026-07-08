@@ -175,6 +175,7 @@ model MatchPlayer {
   joinedAt       DateTime     @default(now()) @map("joined_at")
 
   @@unique([matchId, userId])
+  @@index([userId])
   @@map("match_players")
 }
 
@@ -220,6 +221,8 @@ model LeaderboardLog {
   changePoint Int      @map("change_point")
   createdAt   DateTime @default(now()) @map("created_at")
 
+  @@index([rankingId])
+  @@index([matchId])
   @@map("leaderboard_logs")
 }
 
@@ -302,5 +305,6 @@ model Friendship {
   receiver User @relation("ReceivedFriendships", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
+  @@index([receiverId])
   @@map("friendships")
 }

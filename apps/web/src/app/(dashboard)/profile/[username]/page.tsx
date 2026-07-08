@@ -10,6 +10,7 @@ import {
 import api from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import MathBackground from "@/components/ui/MathBackground";
+import ClientDateFormatter from "@/components/ui/ClientDateFormatter";
 
 interface MatchRecord {
   matchId: string;
@@ -327,11 +328,7 @@ export default function PublicProfilePage() {
 
                             {/* Date */}
                             <td className="py-4 px-4 text-right text-xs text-slate-500 font-medium">
-                              {new Date(item.playedAt).toLocaleDateString("id-ID", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric"
-                              })}
+                              <ClientDateFormatter dateString={item.playedAt} options={{ day: "2-digit", month: "short", year: "numeric" }} />
                             </td>
                           </tr>
                         );

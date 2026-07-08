@@ -19,6 +19,7 @@ import AchievementGrid, { type Achievement } from "@/components/AchievementGrid"
 import { getApiStatus } from "@/lib/errors";
 import PageTransition from "@/components/PageTransition";
 import SocialPanel from "@/components/social/SocialPanel";
+import ClientDateFormatter from "@/components/ui/ClientDateFormatter";
 
 const ThreeCanvas = dynamic(() => import("@/components/ThreeCanvas"), { ssr: false });
 const EnergyCoreSphereScene = dynamic(() => import("@/components/EnergyCoreSphere"), { ssr: false });
@@ -535,9 +536,7 @@ export default function DashboardPage() {
                               }`}
                             </div>
                             <span className="text-[10px] text-slate-500 font-ui">
-                              {new Date(m.joinedAt).toLocaleDateString("id-ID", {
-                                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
-                              })}
+                              <ClientDateFormatter dateString={m.joinedAt} options={{ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }} />
                             </span>
                           </div>
                         </div>

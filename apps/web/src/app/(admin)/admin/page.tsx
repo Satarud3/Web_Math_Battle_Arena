@@ -9,6 +9,7 @@ import {
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { getApiStatus } from "@/lib/errors";
+import ClientDateFormatter from "@/components/ui/ClientDateFormatter";
 
 interface AdminStats {
   totalUsers: number;
@@ -244,9 +245,7 @@ export default function AdminPage() {
                           </span>
                         </td>
                         <td className="py-3 px-2 text-[10px] text-slate-500">
-                          {new Date(u.createdAt).toLocaleDateString("id-ID", {
-                            day: "numeric", month: "short"
-                          })}
+                          <ClientDateFormatter dateString={u.createdAt} options={{ day: "numeric", month: "short" }} />
                         </td>
                       </tr>
                     ))}

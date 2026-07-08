@@ -44,6 +44,11 @@ export class AchievementsService {
       where: { userId },
     });
 
+    // Pre-fetch player's answers in this match once to avoid N+1 queries in loops
+    const playerAnswers = await this.prisma.answer.findMany({
+      where: { matchId, userId },
+    });
+
     for (const ach of lockedAchievements) {
       let satisfies = false;
 
@@ -68,14 +73,9 @@ export class AchievementsService {
         }
         case 'ASSASSIN_INSTINCT': {
           // Menjawab soal dengan benar dalam waktu kurang dari 3 detik
-          const fastCorrectAnswer = await this.prisma.answer.findFirst({
-            where: {
-              matchId,
-              userId,
-              isCorrect: true,
-              answerTimeMs: { lt: 3000 },
-            },
-          });
+          const fastCorrectAnswer = playerAnswers.find(
+            (ans) => ans.isCorrect && ans.answerTimeMs < 3000,
+          );
           if (fastCorrectAnswer) {
             satisfies = true;
           }

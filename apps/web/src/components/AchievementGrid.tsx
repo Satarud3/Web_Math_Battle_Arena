@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Target, ShieldCheck, Zap, Flame, BookOpen, Lock, Loader2, Award, type LucideIcon } from "lucide-react";
 import api from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/errors";
+import ClientDateFormatter from "@/components/ui/ClientDateFormatter";
 
 export interface Achievement {
   id: string;
@@ -191,11 +192,7 @@ export default function AchievementGrid({
                 </div>
                 <div className="text-[9px] text-slate-500 mt-3 font-semibold">
                   Didapatkan pada:{" "}
-                  {new Date(ach.unlockedAt!).toLocaleDateString("id-ID", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  <ClientDateFormatter dateString={ach.unlockedAt!} options={{ day: "2-digit", month: "short", year: "numeric" }} />
                 </div>
               </div>
             </div>

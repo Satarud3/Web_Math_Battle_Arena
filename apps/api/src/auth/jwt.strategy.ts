@@ -13,10 +13,14 @@ const cookieExtractor = (req: Request): string | null => {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret && process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL CONFIGURATION ERROR: JWT_SECRET environment variable must be defined in production!');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([cookieExtractor]),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'change_this_secret',
+      secretOrKey: jwtSecret || 'change_this_secret',
     });
   }
 
