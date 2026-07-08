@@ -37,6 +37,7 @@ export class GameGateway
   public static instance: GameGateway;
   public static userStatus = new Map<string, 'ONLINE' | 'OFFLINE' | 'IN_GAME'>();
   public static userSockets = new Map<string, string>();
+  public static matchInvites = new Map<string, { inviteId: string; senderId: string; senderUsername: string; receiverId: string; mode: string }>();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -312,6 +313,159 @@ export class GameGateway
       `[Socket.IO] Player @${user.username} submitted option ${payload.chosenOption} for match ${payload.matchId}`,
     );
     await this.roomService.submitAnswer(payload.matchId, user.id, payload.chosenOption);
+  }
+
+  @SubscribeMessage('send_match_invite')
+  async handleSendMatchInvite(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { friendId: string; mode?: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.friendId) return;
+    const user = client.data.user;
+    const friendId = payload.friendId;
+    const mode = payload.mode || 'ARENA';
+
+    // 1. Check if friend is online
+    const friendSocketId = GameGateway.userSockets.get(friendId);
+    if (!friendSocketId) {
+      client.emit('invite_error', { message: 'Gladiator sedang offline.' });
+      return;
+    }
+
+    // Check if friend is already in-game
+    const friendStatus = GameGateway.userStatus.get(friendId);
+    if (friendStatus === 'IN_GAME') {
+      client.emit('invite_error', { message: 'Gladiator sedang bertanding.' });
+      return;
+    }
+
+    // 2. Generate invite ID and register invite in memory
+    const inviteId = `${user.id}-${friendId}-${Date.now()}`;
+    GameGateway.matchInvites.set(inviteId, {
+      inviteId,
+      senderId: user.id,
+      senderUsername: user.username,
+      receiverId: friendId,
+      mode,
+    });
+
+    // 3. Emit invite received event to the friend
+    this.server.to(friendSocketId).emit('match_invite_received', {
+      inviteId,
+      senderId: user.id,
+      senderUsername: user.username,
+      mode,
+    });
+
+    // Notify sender that invite was sent successfully
+    client.emit('invite_sent', { inviteId, friendId });
+    console.log(`[Socket.IO] Match invite sent from @${user.username} to friend ${friendId} (inviteId: ${inviteId})`);
+  }
+
+  @SubscribeMessage('cancel_match_invite')
+  handleCancelMatchInvite(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { inviteId: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.inviteId) return;
+    const user = client.data.user;
+    const invite = GameGateway.matchInvites.get(payload.inviteId);
+
+    if (invite && invite.senderId === user.id) {
+      GameGateway.matchInvites.delete(payload.inviteId);
+      const friendSocketId = GameGateway.userSockets.get(invite.receiverId);
+      if (friendSocketId) {
+        this.server.to(friendSocketId).emit('match_invite_cancelled', { inviteId: payload.inviteId });
+      }
+      console.log(`[Socket.IO] Match invite cancelled by @${user.username} (inviteId: ${payload.inviteId})`);
+    }
+  }
+
+  @SubscribeMessage('reject_match_invite')
+  handleRejectMatchInvite(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { inviteId: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.inviteId) return;
+    const user = client.data.user;
+    const invite = GameGateway.matchInvites.get(payload.inviteId);
+
+    if (invite && invite.receiverId === user.id) {
+      GameGateway.matchInvites.delete(payload.inviteId);
+      const senderSocketId = GameGateway.userSockets.get(invite.senderId);
+      if (senderSocketId) {
+        this.server.to(senderSocketId).emit('match_invite_rejected', {
+          inviteId: payload.inviteId,
+          receiverUsername: user.username,
+        });
+      }
+      console.log(`[Socket.IO] Match invite rejected by @${user.username} (inviteId: ${payload.inviteId})`);
+    }
+  }
+
+  @SubscribeMessage('accept_match_invite')
+  async handleAcceptMatchInvite(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { inviteId: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.inviteId) return;
+    const user = client.data.user;
+    const invite = GameGateway.matchInvites.get(payload.inviteId);
+
+    if (!invite || invite.receiverId !== user.id) {
+      client.emit('invite_error', { message: 'Undangan tidak ditemukan atau telah kedaluwarsa.' });
+      return;
+    }
+
+    const senderId = invite.senderId;
+    const senderSocketId = GameGateway.userSockets.get(senderId);
+    if (!senderSocketId) {
+      client.emit('invite_error', { message: 'Penantang sudah offline.' });
+      GameGateway.matchInvites.delete(payload.inviteId);
+      return;
+    }
+
+    // Clean up invitation
+    GameGateway.matchInvites.delete(payload.inviteId);
+    console.log(`[Socket.IO] Match invite accepted by @${user.username}. Starting match...`);
+
+    try {
+      // Get users details to start private match
+      const [senderDb, receiverDb] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: senderId },
+          include: { ranking: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: user.id },
+          include: { ranking: true },
+        }),
+      ]);
+
+      if (!senderDb || !receiverDb) {
+        throw new Error('Gladiator tidak ditemukan di database.');
+      }
+
+      const player1 = {
+        userId: senderId,
+        socketId: senderSocketId,
+        username: senderDb.username,
+        ratingPoint: senderDb.ranking ? Number(senderDb.ranking.ratingPoint) : 1000,
+      };
+
+      const player2 = {
+        userId: user.id,
+        socketId: client.id,
+        username: receiverDb.username,
+        ratingPoint: receiverDb.ranking ? Number(receiverDb.ranking.ratingPoint) : 1000,
+      };
+
+      await this.matchmakingService.startPrivateMatch(player1, player2, invite.mode);
+    } catch (err) {
+      console.error('[Socket.IO] Gagal memulai Private Match:', err);
+      client.emit('invite_error', { message: 'Gagal memulai pertandingan: ' + err.message });
+      this.server.to(senderSocketId).emit('invite_error', { message: 'Gagal memulai pertandingan: ' + err.message });
+    }
   }
 
   private findActiveMatchIdByUserId(userId: string): string | null {

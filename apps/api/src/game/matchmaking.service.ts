@@ -233,4 +233,28 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       this.server.to(playerB.socketId).emit('match_error', { message: 'Gagal inisialisasi arena' });
     }
   }
+
+  async startPrivateMatch(
+    player1: { userId: string; socketId: string; username: string; ratingPoint?: number },
+    player2: { userId: string; socketId: string; username: string; ratingPoint?: number },
+    mode = 'ARENA',
+  ) {
+    const entryA: QueueEntry = {
+      userId: player1.userId,
+      socketId: player1.socketId,
+      username: player1.username,
+      ratingPoint: player1.ratingPoint || 1000,
+      joinedAt: new Date(),
+      chosenMode: mode,
+    };
+    const entryB: QueueEntry = {
+      userId: player2.userId,
+      socketId: player2.socketId,
+      username: player2.username,
+      ratingPoint: player2.ratingPoint || 1000,
+      joinedAt: new Date(),
+      chosenMode: mode,
+    };
+    await this.createMatch(entryA, entryB);
+  }
 }
