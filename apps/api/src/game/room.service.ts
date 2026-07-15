@@ -34,6 +34,7 @@ export interface GameRoom {
   questions: Map<string, Question>; // key: questionId
   battleMode: string;
   endTime?: number;
+  isPrivate?: boolean;
 }
 
 @Injectable()
@@ -63,6 +64,7 @@ export class RoomService {
     player2: { userId: string; socketId: string; username: string; ratingPoint?: number },
     questionOrder: string[],
     battleMode: string,
+    isPrivate = false,
   ) {
     // Fetch question details for the match
     const questionList = await this.prisma.question.findMany({
@@ -105,6 +107,7 @@ export class RoomService {
       questionStartTime: 0,
       questions: questionsMap,
       battleMode: battleMode || 'ARENA',
+      isPrivate,
     };
 
     this.rooms.set(matchId, room);
@@ -545,39 +548,41 @@ export class RoomService {
             },
           });
 
-          // 3. Update UserStats
-          const stats = await tx.userStats.findUnique({
-            where: { userId: p.userId },
-          });
-
-          if (stats) {
-            const totalMatches = stats.totalMatches + 1;
-            const totalWins = stats.totalWins + (result === MatchResult.WIN ? 1 : 0);
-            const totalLosses = stats.totalLosses + (result === MatchResult.LOSE ? 1 : 0);
-            const totalDraws = stats.totalDraws + (result === MatchResult.DRAW ? 1 : 0);
-            const totalQuestionsAnswered = stats.totalQuestionsAnswered + room.questionOrder.length;
-            const totalCorrectAnswers = stats.totalCorrectAnswers + p.correctCount;
-            const accuracy = totalQuestionsAnswered > 0 ? (totalCorrectAnswers / totalQuestionsAnswered) * 100 : 0;
-            const winRate = totalMatches > 0 ? (totalWins / totalMatches) * 100 : 0;
-            const currentStreak = result === MatchResult.WIN ? stats.currentStreak + 1 : 0;
-
-            await tx.userStats.update({
+          // 3. Update UserStats (only if NOT private match)
+          if (!room.isPrivate) {
+            const stats = await tx.userStats.findUnique({
               where: { userId: p.userId },
-              data: {
-                totalMatches,
-                totalWins,
-                totalLosses,
-                totalDraws,
-                totalQuestionsAnswered,
-                totalCorrectAnswers,
-                accuracy: parseFloat(accuracy.toFixed(2)),
-                winRate: parseFloat(winRate.toFixed(2)),
-                currentStreak,
-              },
             });
+
+            if (stats) {
+              const totalMatches = stats.totalMatches + 1;
+              const totalWins = stats.totalWins + (result === MatchResult.WIN ? 1 : 0);
+              const totalLosses = stats.totalLosses + (result === MatchResult.LOSE ? 1 : 0);
+              const totalDraws = stats.totalDraws + (result === MatchResult.DRAW ? 1 : 0);
+              const totalQuestionsAnswered = stats.totalQuestionsAnswered + room.questionOrder.length;
+              const totalCorrectAnswers = stats.totalCorrectAnswers + p.correctCount;
+              const accuracy = totalQuestionsAnswered > 0 ? (totalCorrectAnswers / totalQuestionsAnswered) * 100 : 0;
+              const winRate = totalMatches > 0 ? (totalWins / totalMatches) * 100 : 0;
+              const currentStreak = result === MatchResult.WIN ? stats.currentStreak + 1 : 0;
+
+              await tx.userStats.update({
+                where: { userId: p.userId },
+                data: {
+                  totalMatches,
+                  totalWins,
+                  totalLosses,
+                  totalDraws,
+                  totalQuestionsAnswered,
+                  totalCorrectAnswers,
+                  accuracy: parseFloat(accuracy.toFixed(2)),
+                  winRate: parseFloat(winRate.toFixed(2)),
+                  currentStreak,
+                },
+              });
+            }
           }
 
-          // 4. Update MMR in Ranking
+          // 4. Update MMR in Ranking (only if NOT private match)
           const ranking = await tx.ranking.findUnique({
             where: { userId: p.userId },
           });
@@ -590,26 +595,30 @@ export class RoomService {
             else if (result === MatchResult.DRAW) change = 5;
 
             const newPoint = Math.max(0, oldPoint + change);
-            mmrChanges[p.userId] = change;
+            
+            if (!room.isPrivate) {
+              mmrChanges[p.userId] = change;
+              await tx.ranking.update({
+                where: { userId: p.userId },
+                data: {
+                  ratingPoint: newPoint,
+                  tier: getTier(newPoint),
+                },
+              });
 
-            await tx.ranking.update({
-              where: { userId: p.userId },
-              data: {
-                ratingPoint: newPoint,
-                tier: getTier(newPoint),
-              },
-            });
-
-            // Log point change
-            await tx.leaderboardLog.create({
-              data: {
-                rankingId: ranking.id,
-                matchId,
-                oldPoint,
-                newPoint,
-                changePoint: change,
-              },
-            });
+              // Log point change
+              await tx.leaderboardLog.create({
+                data: {
+                  rankingId: ranking.id,
+                  matchId,
+                  oldPoint,
+                  newPoint,
+                  changePoint: change,
+                },
+              });
+            } else {
+              mmrChanges[p.userId] = 0; // Private room matches do not affect MMR
+            }
           }
         }
       });

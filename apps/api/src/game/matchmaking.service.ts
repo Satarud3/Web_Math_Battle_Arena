@@ -138,7 +138,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async createMatch(playerA: QueueEntry, playerB: QueueEntry) {
+  private async createMatch(playerA: QueueEntry, playerB: QueueEntry, isPrivate = false) {
     try {
       // 1. Fetch active questions
       const activeQuestions = await this.prisma.question.findMany({
@@ -225,7 +225,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       });
 
       // 5. Initialize active Room
-      await this.roomService.createRoom(match.id, playerA, playerB, questionOrder, playerA.chosenMode);
+      await this.roomService.createRoom(match.id, playerA, playerB, questionOrder, playerA.chosenMode, isPrivate);
     } catch (err) {
       console.error('Gagal membuat pertandingan 1v1:', err);
       // Put them back in queue or notify failure
@@ -255,6 +255,6 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       joinedAt: new Date(),
       chosenMode: mode,
     };
-    await this.createMatch(entryA, entryB);
+    await this.createMatch(entryA, entryB, true);
   }
 }

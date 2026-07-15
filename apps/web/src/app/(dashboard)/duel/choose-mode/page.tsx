@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Swords, Zap, Shield, EyeOff, Trophy } from "lucide-react";
+import { ArrowLeft, Swords, Zap, Shield, EyeOff, Trophy, PlusCircle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import PageTransition from "@/components/PageTransition";
+import { socket } from "@/lib/socket";
 
 interface BattleModeOption {
   id: string;
@@ -20,6 +21,43 @@ interface BattleModeOption {
 
 export default function ChooseModePage() {
   const router = useRouter();
+  const [loadingRoom, setLoadingRoom] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+
+  useEffect(() => {
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const onRoomCreated = (data: { roomId: string }) => {
+      setLoadingRoom(false);
+      router.push(`/duel/room/${data.roomId}`);
+    };
+
+    const onRoomError = (data: { message: string }) => {
+      setLoadingRoom(false);
+      alert(data.message);
+    };
+
+    socket.on("private_room_created", onRoomCreated);
+    socket.on("private_room_error", onRoomError);
+
+    return () => {
+      socket.off("private_room_created", onRoomCreated);
+      socket.off("private_room_error", onRoomError);
+    };
+  }, [router]);
+
+  const handleCreateRoom = () => {
+    setLoadingRoom(true);
+    socket.emit("create_private_room", { mode: "ARENA" }); // default mode
+  };
+
+  const handleJoinRoom = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!joinCode.trim()) return;
+    router.push(`/duel/room/${joinCode.toUpperCase().trim()}`);
+  };
 
   const modes: BattleModeOption[] = [
     {
@@ -107,6 +145,80 @@ export default function ChooseModePage() {
           <p className="text-slate-400 mt-3 text-sm sm:text-base max-w-xl mx-auto font-ui leading-relaxed">
             Pilih jenis pertempuran kompetitif yang sesuai dengan gaya bermainmu. Setiap mode terikat pada MMR global Anda.
           </p>
+        </div>
+
+        {/* Private Room / Custom Lobby Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto w-full mb-12">
+          {/* Create Room Card */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4 }}
+            className="glass-card rounded-3xl p-6 sm:p-8 border border-neon-blue/20 bg-bg-card/45 relative overflow-hidden flex flex-col justify-between"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-neon-blue/5 rounded-full blur-2xl -z-10" />
+            <div>
+              <span className="text-[9px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full border border-neon-cyan/20 bg-neon-cyan/5 text-neon-cyan shrink-0 font-heading">
+                Casual Duel
+              </span>
+              <h2 className="text-xl font-black text-white font-heading mt-3 mb-2 flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-neon-blue" /> Buat Room Privat
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 font-ui leading-relaxed mb-6">
+                Buat arena tanding privat, dapatkan kode masuk, dan undang teman gladiator Anda untuk duel secara langsung.
+              </p>
+            </div>
+            <button
+              onClick={handleCreateRoom}
+              disabled={loadingRoom}
+              className="w-full bg-gradient-to-r from-neon-blue to-neon-cyan hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] text-black font-black py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer font-heading"
+            >
+              {loadingRoom ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <PlusCircle className="w-5 h-5" />
+              )}
+              Buat Room Baru
+            </button>
+          </motion.div>
+
+          {/* Join Room Card */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4 }}
+            className="glass-card rounded-3xl p-6 sm:p-8 border border-neon-purple/20 bg-bg-card/45 relative overflow-hidden flex flex-col justify-between"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-neon-purple/5 rounded-full blur-2xl -z-10" />
+            <div>
+              <span className="text-[9px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full border border-neon-purple/20 bg-neon-purple/5 text-neon-purple shrink-0 font-heading">
+                Join Lobby
+              </span>
+              <h2 className="text-xl font-black text-white font-heading mt-3 mb-2 flex items-center gap-2">
+                <Swords className="w-5 h-5 text-neon-purple" /> Masuk via Kode
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 font-ui leading-relaxed mb-4">
+                Masukkan kode room 9-karakter (misal: MATH-ABCD) yang dibagikan teman Anda untuk bergabung ke lobby.
+              </p>
+            </div>
+            <form onSubmit={handleJoinRoom} className="flex gap-2 w-full mt-2">
+              <input
+                type="text"
+                placeholder="MATH-XXXX"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                className="flex-1 h-12 rounded-xl border border-white/10 bg-bg-surface/60 px-4 text-sm text-white placeholder-text-muted/40 transition-all focus:border-neon-purple focus:shadow-[0_0_12px_rgba(176,38,255,0.15)] focus:outline-none uppercase font-heading tracking-widest"
+                maxLength={9}
+                required
+              />
+              <button
+                type="submit"
+                className="px-6 h-12 bg-gradient-to-r from-neon-purple to-neon-pink hover:shadow-[0_0_18px_rgba(176,38,255,0.3)] text-white font-black rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer font-heading"
+              >
+                Gabung
+              </button>
+            </form>
+          </motion.div>
         </div>
 
         {/* Modes Grid */}

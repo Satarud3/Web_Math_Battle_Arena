@@ -38,6 +38,17 @@ export class GameGateway
   public static userStatus = new Map<string, 'ONLINE' | 'OFFLINE' | 'IN_GAME'>();
   public static userSockets = new Map<string, string>();
   public static matchInvites = new Map<string, { inviteId: string; senderId: string; senderUsername: string; receiverId: string; mode: string }>();
+  public static privateRooms = new Map<string, {
+    roomId: string;
+    hostId: string;
+    mode: string;
+    players: Array<{
+      userId: string;
+      username: string;
+      socketId: string;
+      isReady: boolean;
+    }>;
+  }>();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -169,6 +180,7 @@ export class GameGateway
       await this.broadcastStatusToFriends(user.id, 'OFFLINE');
 
       this.matchmakingService.leaveQueue(user.id);
+      this.cleanupUserPrivateRooms(user.id);
 
       // Handle active match disconnect with 5s grace period
       const activeMatchId = this.findActiveMatchIdByUserId(user.id);
@@ -479,5 +491,295 @@ export class GameGateway
       }
     }
     return null;
+  }
+
+  // --- Private Lobby Room System Event Handlers ---
+
+  private generateRoomId(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'MATH-';
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    if (GameGateway.privateRooms.has(code)) {
+      return this.generateRoomId();
+    }
+    return code;
+  }
+
+  private cleanupUserPrivateRooms(userId: string) {
+    for (const [roomId, room] of GameGateway.privateRooms.entries()) {
+      if (room.hostId === userId) {
+        // Disband room
+        this.server.to(`private-room-${roomId}`).emit('private_room_disbanded', {
+          message: 'Host meninggalkan room. Room dibubarkan.',
+        });
+        GameGateway.privateRooms.delete(roomId);
+        console.log(`[Socket.IO] Private Room ${roomId} disbanded because host logged off`);
+      } else {
+        // Guest leaves
+        const idx = room.players.findIndex((p) => p.userId === userId);
+        if (idx !== -1) {
+          room.players.splice(idx, 1);
+          this.server.to(`private-room-${roomId}`).emit('private_room_updated', room);
+          console.log(`[Socket.IO] Guest left Private Room ${roomId} due to disconnect`);
+        }
+      }
+    }
+  }
+
+  @SubscribeMessage('create_private_room')
+  async handleCreatePrivateRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { mode: string },
+  ) {
+    if (!client.data || !client.data.user) return;
+    const user = client.data.user;
+    
+    this.cleanupUserPrivateRooms(user.id);
+    
+    const roomId = this.generateRoomId();
+    const mode = payload?.mode || 'ARENA';
+    
+    const room = {
+      roomId,
+      hostId: user.id,
+      mode,
+      players: [
+        {
+          userId: user.id,
+          username: user.username,
+          socketId: client.id,
+          isReady: true,
+        },
+      ],
+    };
+    
+    GameGateway.privateRooms.set(roomId, room);
+    client.join(`private-room-${roomId}`);
+    
+    client.emit('private_room_created', room);
+    console.log(`[Socket.IO] Private Room ${roomId} created by @${user.username} (mode: ${mode})`);
+  }
+
+  @SubscribeMessage('join_private_room')
+  async handleJoinPrivateRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.roomId) return;
+    const user = client.data.user;
+    const roomId = payload.roomId.toUpperCase().trim();
+    
+    const room = GameGateway.privateRooms.get(roomId);
+    if (!room) {
+      client.emit('private_room_error', { message: 'Room tidak ditemukan.' });
+      return;
+    }
+    
+    if (room.players.some(p => p.userId === user.id)) {
+      client.join(`private-room-${roomId}`);
+      client.emit('private_room_joined', room);
+      return;
+    }
+    
+    if (room.players.length >= 2) {
+      client.emit('private_room_error', { message: 'Room sudah penuh.' });
+      return;
+    }
+    
+    this.cleanupUserPrivateRooms(user.id);
+    
+    room.players.push({
+      userId: user.id,
+      username: user.username,
+      socketId: client.id,
+      isReady: false,
+    });
+    
+    client.join(`private-room-${roomId}`);
+    
+    client.emit('private_room_joined', room);
+    this.server.to(`private-room-${roomId}`).emit('private_room_updated', room);
+    console.log(`[Socket.IO] Player @${user.username} joined Private Room ${roomId}`);
+  }
+
+  @SubscribeMessage('leave_private_room')
+  async handleLeavePrivateRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.roomId) return;
+    const user = client.data.user;
+    const roomId = payload.roomId.toUpperCase().trim();
+    
+    const room = GameGateway.privateRooms.get(roomId);
+    if (!room) return;
+    
+    client.leave(`private-room-${roomId}`);
+    
+    // Delay checking to account for React Strict Mode double-mounting and browser refreshes
+    setTimeout(() => {
+      const currentRoom = GameGateway.privateRooms.get(roomId);
+      if (!currentRoom) return;
+      
+      const roomSockets = this.server.sockets.adapter.rooms.get(`private-room-${roomId}`);
+      const userSocketId = GameGateway.userSockets.get(user.id);
+      const isStillInRoom = userSocketId && roomSockets && roomSockets.has(userSocketId);
+      
+      if (!isStillInRoom) {
+        if (currentRoom.hostId === user.id) {
+          this.server.to(`private-room-${roomId}`).emit('private_room_disbanded', {
+            message: 'Host meninggalkan room. Room dibubarkan.',
+          });
+          GameGateway.privateRooms.delete(roomId);
+          console.log(`[Socket.IO] Private Room ${roomId} disbanded after host exit delay`);
+        } else {
+          const idx = currentRoom.players.findIndex(p => p.userId === user.id);
+          if (idx !== -1) {
+            currentRoom.players.splice(idx, 1);
+            this.server.to(`private-room-${roomId}`).emit('private_room_updated', currentRoom);
+            console.log(`[Socket.IO] Guest @${user.username} removed from Room ${roomId} after exit delay`);
+          }
+        }
+      }
+    }, 1200);
+  }
+
+  @SubscribeMessage('change_room_mode')
+  handleChangeRoomMode(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string; mode: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.roomId || !payload.mode) return;
+    const user = client.data.user;
+    const roomId = payload.roomId.toUpperCase().trim();
+    
+    const room = GameGateway.privateRooms.get(roomId);
+    if (!room) return;
+    
+    if (room.hostId !== user.id) {
+      client.emit('private_room_error', { message: 'Hanya host yang dapat mengubah mode.' });
+      return;
+    }
+    
+    room.mode = payload.mode;
+    this.server.to(`private-room-${roomId}`).emit('private_room_updated', room);
+    console.log(`[Socket.IO] Private Room ${roomId} mode changed to ${payload.mode}`);
+  }
+
+  @SubscribeMessage('toggle_ready')
+  handleToggleReady(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.roomId) return;
+    const user = client.data.user;
+    const roomId = payload.roomId.toUpperCase().trim();
+    
+    const room = GameGateway.privateRooms.get(roomId);
+    if (!room) return;
+    
+    const player = room.players.find(p => p.userId === user.id);
+    if (!player) return;
+    
+    // Host is always ready. Only toggle guest.
+    if (room.hostId === user.id) return;
+    
+    player.isReady = !player.isReady;
+    this.server.to(`private-room-${roomId}`).emit('private_room_updated', room);
+    console.log(`[Socket.IO] @${user.username} in Room ${roomId} toggled ready to ${player.isReady}`);
+  }
+
+  @SubscribeMessage('invite_friend_to_room')
+  handleInviteFriendToRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string; friendId: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.roomId || !payload.friendId) return;
+    const user = client.data.user;
+    const roomId = payload.roomId.toUpperCase().trim();
+    
+    const room = GameGateway.privateRooms.get(roomId);
+    if (!room) return;
+    
+    const friendSocketId = GameGateway.userSockets.get(payload.friendId);
+    if (!friendSocketId) {
+      client.emit('private_room_error', { message: 'Teman Anda sedang offline.' });
+      return;
+    }
+    
+    this.server.to(friendSocketId).emit('room_invite_received', {
+      roomId,
+      hostUsername: user.username,
+      mode: room.mode,
+    });
+    console.log(`[Socket.IO] Invitation to room ${roomId} sent from @${user.username} to ${payload.friendId}`);
+  }
+
+  @SubscribeMessage('start_private_room_match')
+  async handleStartPrivateRoomMatch(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    if (!client.data || !client.data.user || !payload || !payload.roomId) return;
+    const user = client.data.user;
+    const roomId = payload.roomId.toUpperCase().trim();
+    
+    const room = GameGateway.privateRooms.get(roomId);
+    if (!room) return;
+    
+    if (room.hostId !== user.id) {
+      client.emit('private_room_error', { message: 'Hanya host yang dapat memulai pertandingan.' });
+      return;
+    }
+    
+    if (room.players.length < 2) {
+      client.emit('private_room_error', { message: 'Butuh 2 pemain untuk memulai.' });
+      return;
+    }
+    
+    const guest = room.players.find(p => p.userId !== room.hostId);
+    if (!guest || !guest.isReady) {
+      client.emit('private_room_error', { message: 'Lawan belum siap (ready).' });
+      return;
+    }
+    
+    const hostPlayer = room.players.find(p => p.userId === room.hostId);
+    if (!hostPlayer) return;
+    
+    try {
+      const [hostDb, guestDb] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: hostPlayer.userId },
+          include: { ranking: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: guest.userId },
+          include: { ranking: true },
+        }),
+      ]);
+      
+      const player1 = {
+        userId: hostPlayer.userId,
+        socketId: hostPlayer.socketId,
+        username: hostPlayer.username,
+        ratingPoint: hostDb?.ranking ? Number(hostDb.ranking.ratingPoint) : 1000,
+      };
+      
+      const player2 = {
+        userId: guest.userId,
+        socketId: guest.socketId,
+        username: guest.username,
+        ratingPoint: guestDb?.ranking ? Number(guestDb.ranking.ratingPoint) : 1000,
+      };
+      
+      // Clean up map first
+      GameGateway.privateRooms.delete(roomId);
+      
+      await this.matchmakingService.startPrivateMatch(player1, player2, room.mode);
+    } catch (err) {
+      client.emit('private_room_error', { message: 'Gagal memulai: ' + err.message });
+    }
   }
 }
