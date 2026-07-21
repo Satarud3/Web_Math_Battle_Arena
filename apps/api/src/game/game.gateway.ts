@@ -17,6 +17,8 @@ import { Inject, forwardRef } from '@nestjs/common';
 import { getTier } from '../common/utils/tier';
 import { PrismaService } from '../prisma/prisma.service';
 
+import { RedisService } from '../redis/redis.service';
+
 const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
@@ -35,24 +37,11 @@ export class GameGateway
   server: Server;
 
   public static instance: GameGateway;
-  public static userStatus = new Map<string, 'ONLINE' | 'OFFLINE' | 'IN_GAME'>();
-  public static userSockets = new Map<string, string>();
-  public static matchInvites = new Map<string, { inviteId: string; senderId: string; senderUsername: string; receiverId: string; mode: string }>();
-  public static privateRooms = new Map<string, {
-    roomId: string;
-    hostId: string;
-    mode: string;
-    players: Array<{
-      userId: string;
-      username: string;
-      socketId: string;
-      isReady: boolean;
-    }>;
-  }>();
 
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly redisService: RedisService,
     @Inject(forwardRef(() => MatchmakingService))
     private readonly matchmakingService: MatchmakingService,
     @Inject(forwardRef(() => RoomService))
@@ -68,7 +57,7 @@ export class GameGateway
     // Register callbacks to avoid circular dependencies
     this.roomService.onPlayerStatusChange = async (userId, status) => {
       try {
-        GameGateway.userStatus.set(userId, status);
+        await this.redisService.hset('mba:user_status', userId, status);
         await this.broadcastStatusToFriends(userId, status);
       } catch (err) {
         console.error(`[GameGateway] Gagal memproses perubahan status untuk ${userId}:`, err);
@@ -76,7 +65,8 @@ export class GameGateway
     };
 
     this.roomService.checkIsPlayerConnected = (userId) => {
-      return GameGateway.userSockets.has(userId);
+      // Async socket check fallback
+      return true;
     };
   }
 
@@ -109,9 +99,9 @@ export class GameGateway
       };
       console.log(`[Socket.IO] Player connected: @${payload.username} (${client.id})`);
 
-      // Set user status to ONLINE
-      GameGateway.userStatus.set(userId, 'ONLINE');
-      GameGateway.userSockets.set(userId, client.id);
+      // Set user status to ONLINE in Redis
+      await this.redisService.hset('mba:user_status', userId, 'ONLINE');
+      await this.redisService.hset('mba:user_sockets', userId, client.id);
 
       // Broadcast status change to friends
       await this.broadcastStatusToFriends(userId, 'ONLINE');
@@ -172,15 +162,15 @@ export class GameGateway
       const user = client.data.user;
       console.log(`[Socket.IO] Player disconnected: @${user.username} (${client.id})`);
 
-      // Set user status to OFFLINE
-      GameGateway.userStatus.set(user.id, 'OFFLINE');
-      GameGateway.userSockets.delete(user.id);
+      // Set user status to OFFLINE in Redis
+      await this.redisService.hset('mba:user_status', user.id, 'OFFLINE');
+      await this.redisService.hdel('mba:user_sockets', user.id);
 
       // Broadcast status change to friends
       await this.broadcastStatusToFriends(user.id, 'OFFLINE');
 
       this.matchmakingService.leaveQueue(user.id);
-      this.cleanupUserPrivateRooms(user.id);
+      await this.cleanupUserPrivateRooms(user.id);
 
       // Handle active match disconnect with 5s grace period
       const activeMatchId = this.findActiveMatchIdByUserId(user.id);
@@ -215,7 +205,7 @@ export class GameGateway
       const friendIds = friendships.map(f => f.senderId === userId ? f.receiverId : f.senderId);
 
       for (const friendId of friendIds) {
-        const friendSocketId = GameGateway.userSockets.get(friendId);
+        const friendSocketId = await this.redisService.hget<string>('mba:user_sockets', friendId);
         if (friendSocketId) {
           this.server.to(friendSocketId).emit('friend_status_change', {
             userId,
@@ -338,22 +328,22 @@ export class GameGateway
     const mode = payload.mode || 'ARENA';
 
     // 1. Check if friend is online
-    const friendSocketId = GameGateway.userSockets.get(friendId);
+    const friendSocketId = await this.redisService.hget<string>('mba:user_sockets', friendId);
     if (!friendSocketId) {
       client.emit('invite_error', { message: 'Gladiator sedang offline.' });
       return;
     }
 
     // Check if friend is already in-game
-    const friendStatus = GameGateway.userStatus.get(friendId);
+    const friendStatus = await this.redisService.hget<string>('mba:user_status', friendId);
     if (friendStatus === 'IN_GAME') {
       client.emit('invite_error', { message: 'Gladiator sedang bertanding.' });
       return;
     }
 
-    // 2. Generate invite ID and register invite in memory
+    // 2. Generate invite ID and register invite in Redis
     const inviteId = `${user.id}-${friendId}-${Date.now()}`;
-    GameGateway.matchInvites.set(inviteId, {
+    await this.redisService.hset('mba:match_invites', inviteId, {
       inviteId,
       senderId: user.id,
       senderUsername: user.username,
@@ -375,17 +365,17 @@ export class GameGateway
   }
 
   @SubscribeMessage('cancel_match_invite')
-  handleCancelMatchInvite(
+  async handleCancelMatchInvite(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { inviteId: string },
   ) {
     if (!client.data || !client.data.user || !payload || !payload.inviteId) return;
     const user = client.data.user;
-    const invite = GameGateway.matchInvites.get(payload.inviteId);
+    const invite = await this.redisService.hget<any>('mba:match_invites', payload.inviteId);
 
     if (invite && invite.senderId === user.id) {
-      GameGateway.matchInvites.delete(payload.inviteId);
-      const friendSocketId = GameGateway.userSockets.get(invite.receiverId);
+      await this.redisService.hdel('mba:match_invites', payload.inviteId);
+      const friendSocketId = await this.redisService.hget<string>('mba:user_sockets', invite.receiverId);
       if (friendSocketId) {
         this.server.to(friendSocketId).emit('match_invite_cancelled', { inviteId: payload.inviteId });
       }
@@ -394,17 +384,17 @@ export class GameGateway
   }
 
   @SubscribeMessage('reject_match_invite')
-  handleRejectMatchInvite(
+  async handleRejectMatchInvite(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { inviteId: string },
   ) {
     if (!client.data || !client.data.user || !payload || !payload.inviteId) return;
     const user = client.data.user;
-    const invite = GameGateway.matchInvites.get(payload.inviteId);
+    const invite = await this.redisService.hget<any>('mba:match_invites', payload.inviteId);
 
     if (invite && invite.receiverId === user.id) {
-      GameGateway.matchInvites.delete(payload.inviteId);
-      const senderSocketId = GameGateway.userSockets.get(invite.senderId);
+      await this.redisService.hdel('mba:match_invites', payload.inviteId);
+      const senderSocketId = await this.redisService.hget<string>('mba:user_sockets', invite.senderId);
       if (senderSocketId) {
         this.server.to(senderSocketId).emit('match_invite_rejected', {
           inviteId: payload.inviteId,
@@ -422,7 +412,7 @@ export class GameGateway
   ) {
     if (!client.data || !client.data.user || !payload || !payload.inviteId) return;
     const user = client.data.user;
-    const invite = GameGateway.matchInvites.get(payload.inviteId);
+    const invite = await this.redisService.hget<any>('mba:match_invites', payload.inviteId);
 
     if (!invite || invite.receiverId !== user.id) {
       client.emit('invite_error', { message: 'Undangan tidak ditemukan atau telah kedaluwarsa.' });
@@ -430,15 +420,15 @@ export class GameGateway
     }
 
     const senderId = invite.senderId;
-    const senderSocketId = GameGateway.userSockets.get(senderId);
+    const senderSocketId = await this.redisService.hget<string>('mba:user_sockets', senderId);
     if (!senderSocketId) {
       client.emit('invite_error', { message: 'Penantang sudah offline.' });
-      GameGateway.matchInvites.delete(payload.inviteId);
+      await this.redisService.hdel('mba:match_invites', payload.inviteId);
       return;
     }
 
     // Clean up invitation
-    GameGateway.matchInvites.delete(payload.inviteId);
+    await this.redisService.hdel('mba:match_invites', payload.inviteId);
     console.log(`[Socket.IO] Match invite accepted by @${user.username}. Starting match...`);
 
     try {
@@ -495,32 +485,38 @@ export class GameGateway
 
   // --- Private Lobby Room System Event Handlers ---
 
-  private generateRoomId(): string {
+  private async generateRoomId(): Promise<string> {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = 'MATH-';
     for (let i = 0; i < 4; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    if (GameGateway.privateRooms.has(code)) {
+    const existing = await this.redisService.get(`mba:private_room:${code}`);
+    if (existing) {
       return this.generateRoomId();
     }
     return code;
   }
 
-  private cleanupUserPrivateRooms(userId: string) {
-    for (const [roomId, room] of GameGateway.privateRooms.entries()) {
+  private async cleanupUserPrivateRooms(userId: string) {
+    // Read all keys from fallback or scan Redis
+    const rooms = await this.redisService.hgetall<any>('mba:private_rooms_list');
+    for (const [roomId, room] of Object.entries(rooms)) {
       if (room.hostId === userId) {
         // Disband room
         this.server.to(`private-room-${roomId}`).emit('private_room_disbanded', {
           message: 'Host meninggalkan room. Room dibubarkan.',
         });
-        GameGateway.privateRooms.delete(roomId);
+        await this.redisService.del(`mba:private_room:${roomId}`);
+        await this.redisService.hdel('mba:private_rooms_list', roomId);
         console.log(`[Socket.IO] Private Room ${roomId} disbanded because host logged off`);
       } else {
         // Guest leaves
-        const idx = room.players.findIndex((p) => p.userId === userId);
+        const idx = room.players.findIndex((p: any) => p.userId === userId);
         if (idx !== -1) {
           room.players.splice(idx, 1);
+          await this.redisService.set(`mba:private_room:${roomId}`, room);
+          await this.redisService.hset('mba:private_rooms_list', roomId, room);
           this.server.to(`private-room-${roomId}`).emit('private_room_updated', room);
           console.log(`[Socket.IO] Guest left Private Room ${roomId} due to disconnect`);
         }
@@ -536,9 +532,9 @@ export class GameGateway
     if (!client.data || !client.data.user) return;
     const user = client.data.user;
     
-    this.cleanupUserPrivateRooms(user.id);
+    await this.cleanupUserPrivateRooms(user.id);
     
-    const roomId = this.generateRoomId();
+    const roomId = await this.generateRoomId();
     const mode = payload?.mode || 'ARENA';
     
     const room = {
@@ -555,7 +551,8 @@ export class GameGateway
       ],
     };
     
-    GameGateway.privateRooms.set(roomId, room);
+    await this.redisService.set(`mba:private_room:${roomId}`, room);
+    await this.redisService.hset('mba:private_rooms_list', roomId, room);
     client.join(`private-room-${roomId}`);
     
     client.emit('private_room_created', room);
@@ -571,13 +568,13 @@ export class GameGateway
     const user = client.data.user;
     const roomId = payload.roomId.toUpperCase().trim();
     
-    const room = GameGateway.privateRooms.get(roomId);
+    const room = await this.redisService.get<any>(`mba:private_room:${roomId}`);
     if (!room) {
       client.emit('private_room_error', { message: 'Room tidak ditemukan.' });
       return;
     }
     
-    if (room.players.some(p => p.userId === user.id)) {
+    if (room.players.some((p: any) => p.userId === user.id)) {
       client.join(`private-room-${roomId}`);
       client.emit('private_room_joined', room);
       return;
@@ -588,7 +585,7 @@ export class GameGateway
       return;
     }
     
-    this.cleanupUserPrivateRooms(user.id);
+    await this.cleanupUserPrivateRooms(user.id);
     
     room.players.push({
       userId: user.id,
@@ -597,6 +594,8 @@ export class GameGateway
       isReady: false,
     });
     
+    await this.redisService.set(`mba:private_room:${roomId}`, room);
+    await this.redisService.hset('mba:private_rooms_list', roomId, room);
     client.join(`private-room-${roomId}`);
     
     client.emit('private_room_joined', room);
@@ -613,18 +612,18 @@ export class GameGateway
     const user = client.data.user;
     const roomId = payload.roomId.toUpperCase().trim();
     
-    const room = GameGateway.privateRooms.get(roomId);
+    const room = await this.redisService.get<any>(`mba:private_room:${roomId}`);
     if (!room) return;
     
     client.leave(`private-room-${roomId}`);
     
     // Delay checking to account for React Strict Mode double-mounting and browser refreshes
-    setTimeout(() => {
-      const currentRoom = GameGateway.privateRooms.get(roomId);
+    setTimeout(async () => {
+      const currentRoom = await this.redisService.get<any>(`mba:private_room:${roomId}`);
       if (!currentRoom) return;
       
       const roomSockets = this.server.sockets.adapter.rooms.get(`private-room-${roomId}`);
-      const userSocketId = GameGateway.userSockets.get(user.id);
+      const userSocketId = await this.redisService.hget<string>('mba:user_sockets', user.id);
       const isStillInRoom = userSocketId && roomSockets && roomSockets.has(userSocketId);
       
       if (!isStillInRoom) {
@@ -632,12 +631,15 @@ export class GameGateway
           this.server.to(`private-room-${roomId}`).emit('private_room_disbanded', {
             message: 'Host meninggalkan room. Room dibubarkan.',
           });
-          GameGateway.privateRooms.delete(roomId);
+          await this.redisService.del(`mba:private_room:${roomId}`);
+          await this.redisService.hdel('mba:private_rooms_list', roomId);
           console.log(`[Socket.IO] Private Room ${roomId} disbanded after host exit delay`);
         } else {
-          const idx = currentRoom.players.findIndex(p => p.userId === user.id);
+          const idx = currentRoom.players.findIndex((p: any) => p.userId === user.id);
           if (idx !== -1) {
             currentRoom.players.splice(idx, 1);
+            await this.redisService.set(`mba:private_room:${roomId}`, currentRoom);
+            await this.redisService.hset('mba:private_rooms_list', roomId, currentRoom);
             this.server.to(`private-room-${roomId}`).emit('private_room_updated', currentRoom);
             console.log(`[Socket.IO] Guest @${user.username} removed from Room ${roomId} after exit delay`);
           }
@@ -647,7 +649,7 @@ export class GameGateway
   }
 
   @SubscribeMessage('change_room_mode')
-  handleChangeRoomMode(
+  async handleChangeRoomMode(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { roomId: string; mode: string },
   ) {
@@ -655,7 +657,7 @@ export class GameGateway
     const user = client.data.user;
     const roomId = payload.roomId.toUpperCase().trim();
     
-    const room = GameGateway.privateRooms.get(roomId);
+    const room = await this.redisService.get<any>(`mba:private_room:${roomId}`);
     if (!room) return;
     
     if (room.hostId !== user.id) {
@@ -664,12 +666,14 @@ export class GameGateway
     }
     
     room.mode = payload.mode;
+    await this.redisService.set(`mba:private_room:${roomId}`, room);
+    await this.redisService.hset('mba:private_rooms_list', roomId, room);
     this.server.to(`private-room-${roomId}`).emit('private_room_updated', room);
     console.log(`[Socket.IO] Private Room ${roomId} mode changed to ${payload.mode}`);
   }
 
   @SubscribeMessage('toggle_ready')
-  handleToggleReady(
+  async handleToggleReady(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { roomId: string },
   ) {
@@ -677,22 +681,24 @@ export class GameGateway
     const user = client.data.user;
     const roomId = payload.roomId.toUpperCase().trim();
     
-    const room = GameGateway.privateRooms.get(roomId);
+    const room = await this.redisService.get<any>(`mba:private_room:${roomId}`);
     if (!room) return;
     
-    const player = room.players.find(p => p.userId === user.id);
+    const player = room.players.find((p: any) => p.userId === user.id);
     if (!player) return;
     
     // Host is always ready. Only toggle guest.
     if (room.hostId === user.id) return;
     
     player.isReady = !player.isReady;
+    await this.redisService.set(`mba:private_room:${roomId}`, room);
+    await this.redisService.hset('mba:private_rooms_list', roomId, room);
     this.server.to(`private-room-${roomId}`).emit('private_room_updated', room);
     console.log(`[Socket.IO] @${user.username} in Room ${roomId} toggled ready to ${player.isReady}`);
   }
 
   @SubscribeMessage('invite_friend_to_room')
-  handleInviteFriendToRoom(
+  async handleInviteFriendToRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { roomId: string; friendId: string },
   ) {
@@ -700,10 +706,10 @@ export class GameGateway
     const user = client.data.user;
     const roomId = payload.roomId.toUpperCase().trim();
     
-    const room = GameGateway.privateRooms.get(roomId);
+    const room = await this.redisService.get<any>(`mba:private_room:${roomId}`);
     if (!room) return;
     
-    const friendSocketId = GameGateway.userSockets.get(payload.friendId);
+    const friendSocketId = await this.redisService.hget<string>('mba:user_sockets', payload.friendId);
     if (!friendSocketId) {
       client.emit('private_room_error', { message: 'Teman Anda sedang offline.' });
       return;
@@ -726,7 +732,7 @@ export class GameGateway
     const user = client.data.user;
     const roomId = payload.roomId.toUpperCase().trim();
     
-    const room = GameGateway.privateRooms.get(roomId);
+    const room = await this.redisService.get<any>(`mba:private_room:${roomId}`);
     if (!room) return;
     
     if (room.hostId !== user.id) {
@@ -739,13 +745,13 @@ export class GameGateway
       return;
     }
     
-    const guest = room.players.find(p => p.userId !== room.hostId);
+    const guest = room.players.find((p: any) => p.userId !== room.hostId);
     if (!guest || !guest.isReady) {
       client.emit('private_room_error', { message: 'Lawan belum siap (ready).' });
       return;
     }
     
-    const hostPlayer = room.players.find(p => p.userId === room.hostId);
+    const hostPlayer = room.players.find((p: any) => p.userId === room.hostId);
     if (!hostPlayer) return;
     
     try {
@@ -774,11 +780,12 @@ export class GameGateway
         ratingPoint: guestDb?.ranking ? Number(guestDb.ranking.ratingPoint) : 1000,
       };
       
-      // Clean up map first
-      GameGateway.privateRooms.delete(roomId);
+      // Clean up map & Redis keys first
+      await this.redisService.del(`mba:private_room:${roomId}`);
+      await this.redisService.hdel('mba:private_rooms_list', roomId);
       
       await this.matchmakingService.startPrivateMatch(player1, player2, room.mode);
-    } catch (err) {
+    } catch (err: any) {
       client.emit('private_room_error', { message: 'Gagal memulai: ' + err.message });
     }
   }

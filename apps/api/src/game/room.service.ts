@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Server } from 'socket.io';
 import { MatchMode, MatchStatus, MatchResult, Question } from '@prisma/client';
 import { getTier } from '../common/utils/tier';
 import { AchievementsService } from '../achievements/achievements.service';
 import { checkAnswer, getCorrectAnswerString } from '../common/utils/answer';
+import { RedisService } from '../redis/redis.service';
 
 export interface RoomPlayer {
   userId: string;
@@ -38,9 +39,10 @@ export interface GameRoom {
 }
 
 @Injectable()
-export class RoomService {
+export class RoomService implements OnModuleInit, OnModuleDestroy {
   private server: Server;
   private rooms: Map<string, GameRoom> = new Map();
+  private scanInterval: NodeJS.Timeout | null = null;
 
   public onPlayerStatusChange?: (userId: string, status: 'ONLINE' | 'OFFLINE' | 'IN_GAME') => void | Promise<void>;
   public checkIsPlayerConnected?: (userId: string) => boolean;
@@ -48,7 +50,84 @@ export class RoomService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly achievementsService: AchievementsService,
+    private readonly redisService: RedisService,
   ) {}
+
+  onModuleInit() {
+    this.startOrphanedTimerScanner();
+  }
+
+  onModuleDestroy() {
+    if (this.scanInterval) {
+      clearInterval(this.scanInterval);
+    }
+  }
+
+  private startOrphanedTimerScanner() {
+    this.scanInterval = setInterval(() => {
+      this.checkOrphanedMatchTimers().catch((err) => {
+        console.error('[RoomService Recovery Engine] Error in checkOrphanedMatchTimers:', err);
+      });
+    }, 4000);
+  }
+
+  public async checkOrphanedMatchTimers() {
+    try {
+      const activeMatchIds = await this.redisService.smembers('mba:active_matches');
+      const now = Date.now();
+
+      for (const matchId of activeMatchIds) {
+        const roomData = await this.redisService.get<any>(`mba:game_room:${matchId}`);
+        if (!roomData) {
+          await this.redisService.srem('mba:active_matches', matchId);
+          continue;
+        }
+
+        // If question end time passed >3.5 seconds ago and no transition occurred, take over!
+        if (roomData.endTime && now > roomData.endTime + 3500) {
+          const recoveryLock = await this.redisService.acquireLock(
+            `mba:lock_recovery:${matchId}:${roomData.currentQuestionIndex}`,
+            5000,
+          );
+          if (recoveryLock) {
+            console.warn(
+              `[RoomService Recovery Engine] Detected orphaned timer for match ${matchId} (index ${roomData.currentQuestionIndex}). Recovering match!`,
+            );
+            await this.hydrateAndRecoverRoom(matchId, roomData);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('[RoomService Recovery Engine] Error scanning orphaned match timers:', err);
+    }
+  }
+
+  private async hydrateAndRecoverRoom(matchId: string, roomData: any) {
+    let room = this.rooms.get(matchId);
+    if (!room) {
+      const questionList = await this.prisma.question.findMany({
+        where: { id: { in: roomData.questionOrder } },
+      });
+      const questionsMap = new Map<string, Question>();
+      for (const q of questionList) {
+        questionsMap.set(q.id, q);
+      }
+
+      room = {
+        matchId: roomData.matchId,
+        players: roomData.players,
+        questionOrder: roomData.questionOrder,
+        currentQuestionIndex: roomData.currentQuestionIndex,
+        questionStartTime: Date.now() - 15000,
+        questions: questionsMap,
+        battleMode: roomData.battleMode,
+        isPrivate: roomData.isPrivate,
+      };
+      this.rooms.set(matchId, room);
+    }
+
+    await this.handleQuestionTimeout(matchId);
+  }
 
   setServer(server: Server) {
     this.server = server;
@@ -111,6 +190,15 @@ export class RoomService {
     };
 
     this.rooms.set(matchId, room);
+    await this.redisService.sadd('mba:active_matches', matchId);
+    await this.redisService.set(`mba:game_room:${matchId}`, {
+      matchId,
+      players: room.players,
+      questionOrder,
+      currentQuestionIndex: 0,
+      battleMode: room.battleMode,
+      isPrivate,
+    });
 
     // Update status to IN_GAME (wrapped in try-catch to prevent hanging)
     try {
@@ -122,10 +210,10 @@ export class RoomService {
       console.error('[RoomService] Gagal memperbarui status pemain ke IN_GAME:', e);
     }
 
-    this.sendQuestion(matchId);
+    await this.sendQuestion(matchId);
   }
 
-  sendQuestion(matchId: string) {
+  async sendQuestion(matchId: string) {
     try {
       const room = this.rooms.get(matchId);
       if (!room) return;
@@ -146,6 +234,17 @@ export class RoomService {
       room.questionStartTime = Date.now();
       room.endTime = Date.now() + duration;
       const endTime = room.endTime;
+
+      // Update Redis game room state with current question endTime
+      await this.redisService.set(`mba:game_room:${matchId}`, {
+        matchId,
+        players: room.players,
+        questionOrder: room.questionOrder,
+        currentQuestionIndex: room.currentQuestionIndex,
+        battleMode: room.battleMode,
+        isPrivate: room.isPrivate,
+        endTime,
+      });
 
       // Reset player submissions for this question (Strict Reset)
       for (const p of Object.values(room.players)) {
@@ -308,6 +407,12 @@ export class RoomService {
       const room = this.rooms.get(matchId);
       if (!room) return;
 
+      const lockAcquired = await this.redisService.acquireLock(`mba:lock_timeout:${matchId}:${room.currentQuestionIndex}`, 4000);
+      if (!lockAcquired) {
+        console.log(`[RoomService] Timeout lock for match ${matchId} index ${room.currentQuestionIndex} already acquired by another node.`);
+        return;
+      }
+
       const questionId = room.questionOrder[room.currentQuestionIndex];
       const question = room.questions.get(questionId);
       if (!question) return;
@@ -396,10 +501,16 @@ export class RoomService {
     }
   }
 
-  advanceQuestion(matchId: string) {
+  async advanceQuestion(matchId: string) {
     try {
       const room = this.rooms.get(matchId);
       if (!room) return;
+
+      const lockAcquired = await this.redisService.acquireLock(`mba:lock_advance:${matchId}:${room.currentQuestionIndex}`, 4000);
+      if (!lockAcquired) {
+        console.log(`[RoomService] Advance lock for match ${matchId} index ${room.currentQuestionIndex} already acquired by another node.`);
+        return;
+      }
 
       if (room.currentQuestionIndex + 1 === room.questionOrder.length) {
         this.finishMatch(matchId).catch((err) => {
@@ -459,6 +570,8 @@ export class RoomService {
     const players = Object.values(room.players);
     if (players.length < 2) {
       this.rooms.delete(matchId);
+      await this.redisService.del(`mba:game_room:${matchId}`);
+      await this.redisService.srem('mba:active_matches', matchId);
       return;
     }
 
@@ -678,6 +791,7 @@ export class RoomService {
     } finally {
       // Always cleanup room to prevent memory leak and release players
       this.rooms.delete(matchId);
+      await this.redisService.del(`mba:game_room:${matchId}`);
     }
   }
 

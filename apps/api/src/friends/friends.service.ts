@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GameGateway } from '../game/game.gateway';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class FriendsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redisService: RedisService,
+  ) {}
 
   async sendFriendRequest(userId: string, targetUsername: string) {
     const target = await this.prisma.user.findUnique({
@@ -32,9 +36,8 @@ export class FriendsService {
     if (existing) {
       if (existing.status === 'ACCEPTED') {
         throw new BadRequestException('Anda sudah berteman dengan gladiator ini');
-      } else {
-        throw new BadRequestException('Permintaan pertemanan sudah dikirim sebelumnya dan sedang menunggu respon');
       }
+      throw new BadRequestException('Permintaan pertemanan sudah pernah dikirim');
     }
 
     return this.prisma.friendship.create({
@@ -70,6 +73,7 @@ export class FriendsService {
       where: {
         id: requestId,
         receiverId: userId,
+        status: 'PENDING',
       },
     });
 
@@ -84,11 +88,11 @@ export class FriendsService {
 
     // Notify both users of their live statuses
     if (GameGateway.instance) {
-      const senderStatus = GameGateway.userStatus.get(updated.senderId) || 'OFFLINE';
-      const receiverStatus = GameGateway.userStatus.get(updated.receiverId) || 'OFFLINE';
+      const senderStatus = (await this.redisService.hget<string>('mba:user_status', updated.senderId)) || 'OFFLINE';
+      const receiverStatus = (await this.redisService.hget<string>('mba:user_status', updated.receiverId)) || 'OFFLINE';
 
-      const senderSocketId = GameGateway.userSockets.get(updated.senderId);
-      const receiverSocketId = GameGateway.userSockets.get(updated.receiverId);
+      const senderSocketId = await this.redisService.hget<string>('mba:user_sockets', updated.senderId);
+      const receiverSocketId = await this.redisService.hget<string>('mba:user_sockets', updated.receiverId);
 
       if (receiverSocketId) {
         GameGateway.instance.server.to(receiverSocketId).emit('friend_status_change', {
@@ -107,12 +111,32 @@ export class FriendsService {
     return updated;
   }
 
+  async declineFriendRequest(userId: string, requestId: string) {
+    const friendship = await this.prisma.friendship.findFirst({
+      where: {
+        id: requestId,
+        receiverId: userId,
+        status: 'PENDING',
+      },
+    });
+
+    if (!friendship) {
+      throw new NotFoundException('Permintaan pertemanan tidak ditemukan');
+    }
+
+    await this.prisma.friendship.delete({
+      where: { id: requestId },
+    });
+
+    return { success: true };
+  }
+
   async removeFriend(userId: string, friendId: string) {
     const friendship = await this.prisma.friendship.findFirst({
       where: {
         OR: [
-          { senderId: userId, receiverId: friendId },
-          { senderId: friendId, receiverId: userId },
+          { senderId: userId, receiverId: friendId, status: 'ACCEPTED' },
+          { senderId: friendId, receiverId: userId, status: 'ACCEPTED' },
         ],
       },
     });
@@ -127,8 +151,8 @@ export class FriendsService {
 
     // Notify both users that they are no longer friends (status becomes OFFLINE for each other)
     if (GameGateway.instance) {
-      const senderSocketId = GameGateway.userSockets.get(friendship.senderId);
-      const receiverSocketId = GameGateway.userSockets.get(friendship.receiverId);
+      const senderSocketId = await this.redisService.hget<string>('mba:user_sockets', friendship.senderId);
+      const receiverSocketId = await this.redisService.hget<string>('mba:user_sockets', friendship.receiverId);
 
       if (receiverSocketId) {
         GameGateway.instance.server.to(receiverSocketId).emit('friend_status_change', {
@@ -175,9 +199,11 @@ export class FriendsService {
       },
     });
 
+    const userStatuses = await this.redisService.hgetall<string>('mba:user_status');
+
     return friendships.map((f) => {
       const friend = f.senderId === userId ? f.receiver : f.sender;
-      const status = GameGateway.userStatus.get(friend.id) || 'OFFLINE';
+      const status = userStatuses[friend.id] || 'OFFLINE';
       return {
         id: friend.id,
         name: friend.name,

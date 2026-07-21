@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomService } from './room.service';
+import { RedisService } from '../redis/redis.service';
 import { Server } from 'socket.io';
 import { MatchMode, MatchStatus } from '@prisma/client';
 
@@ -9,7 +10,8 @@ export interface QueueEntry {
   socketId: string;
   username: string;
   ratingPoint: number;
-  joinedAt: Date;
+  joinedAt: string;
+  joinedAtMs: number;
   chosenMode: string;
 }
 
@@ -24,13 +26,13 @@ function shuffleArray<T>(array: T[]): T[] {
 
 @Injectable()
 export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
-  private queue: QueueEntry[] = [];
   private scanInterval: NodeJS.Timeout | null = null;
   private server: Server;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly roomService: RoomService,
+    private readonly redisService: RedisService,
   ) {}
 
   onModuleInit() {
@@ -58,8 +60,8 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
   }
 
   async joinQueue(player: { userId: string; socketId: string; username: string; chosenMode?: string }) {
-    // Check if player is already waiting
-    const exists = this.queue.some((entry) => entry.userId === player.userId);
+    const queue = await this.redisService.lrange<QueueEntry>('mba:matchmaking_queue', 0, -1);
+    const exists = queue.some((entry) => entry.userId === player.userId);
     if (exists) return;
 
     // Fetch MMR/Rating from DB
@@ -68,17 +70,19 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
     });
     const ratingPoint = ranking ? ranking.ratingPoint : 1000;
     const chosenMode = player.chosenMode || 'ARENA';
+    const nowMs = Date.now();
 
     const entry: QueueEntry = {
       userId: player.userId,
       socketId: player.socketId,
       username: player.username,
       ratingPoint,
-      joinedAt: new Date(),
+      joinedAt: new Date(nowMs).toISOString(),
+      joinedAtMs: nowMs,
       chosenMode,
     };
 
-    this.queue.push(entry);
+    await this.redisService.lpush('mba:matchmaking_queue', entry);
 
     // Notify player that they successfully joined the queue
     this.server.to(player.socketId).emit('queue_joined', {
@@ -87,54 +91,22 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  leaveQueue(userId: string) {
-    const index = this.queue.findIndex((entry) => entry.userId === userId);
-    if (index !== -1) {
-      const entry = this.queue[index];
-      this.queue.splice(index, 1);
+  async leaveQueue(userId: string) {
+    const queue = await this.redisService.lrange<QueueEntry>('mba:matchmaking_queue', 0, -1);
+    const entry = queue.find((item) => item.userId === userId);
+    if (entry) {
+      await this.redisService.lrem('mba:matchmaking_queue', 0, (item) => item.userId === userId);
       this.server.to(entry.socketId).emit('queue_left');
     }
   }
 
-  private async scanQueue() {
-    if (this.queue.length < 2) return;
-
-    // We will scan the queue starting with the players who have been waiting the longest
-    // Sort queue by joinedAt ascending
-    this.queue.sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
-
-    for (let i = 0; i < this.queue.length; i++) {
-      const playerA = this.queue[i];
-      const elapsedSecsA = (Date.now() - playerA.joinedAt.getTime()) / 1000;
-      // MMR tolerance scales dynamically: base 300 + 15 points per second waited
-      const toleranceA = 300 + Math.floor(elapsedSecsA * 15);
-
-      for (let j = i + 1; j < this.queue.length; j++) {
-        const playerB = this.queue[j];
-
-        // Matchmaking must match players in the SAME mode
-        if (playerA.chosenMode !== playerB.chosenMode) continue;
-
-        const elapsedSecsB = (Date.now() - playerB.joinedAt.getTime()) / 1000;
-        const toleranceB = 300 + Math.floor(elapsedSecsB * 15);
-
-        const ratingDiff = Math.abs(playerA.ratingPoint - playerB.ratingPoint);
-        const maxAllowedTolerance = Math.max(toleranceA, toleranceB);
-
-        if (ratingDiff <= maxAllowedTolerance) {
-          // Matched!
-          // Remove from queue
-          this.queue = this.queue.filter(
-            (entry) => entry.userId !== playerA.userId && entry.userId !== playerB.userId,
-          );
-
-          // Trigger match creation
-          await this.createMatch(playerA, playerB);
-
-          // Reset loop index since we modified the queue
-          return this.scanQueue();
-        }
-      }
+  public async scanQueue() {
+    const pair = await this.redisService.popMatchPair<QueueEntry>('mba:matchmaking_queue', Date.now());
+    if (pair) {
+      const [playerA, playerB] = pair;
+      await this.createMatch(playerA, playerB);
+      // Recursively scan until no more pairs can be atomically matched
+      await this.scanQueue();
     }
   }
 
@@ -239,12 +211,14 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
     player2: { userId: string; socketId: string; username: string; ratingPoint?: number },
     mode = 'ARENA',
   ) {
+    const nowMs = Date.now();
     const entryA: QueueEntry = {
       userId: player1.userId,
       socketId: player1.socketId,
       username: player1.username,
       ratingPoint: player1.ratingPoint || 1000,
-      joinedAt: new Date(),
+      joinedAt: new Date(nowMs).toISOString(),
+      joinedAtMs: nowMs,
       chosenMode: mode,
     };
     const entryB: QueueEntry = {
@@ -252,7 +226,8 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       socketId: player2.socketId,
       username: player2.username,
       ratingPoint: player2.ratingPoint || 1000,
-      joinedAt: new Date(),
+      joinedAt: new Date(nowMs).toISOString(),
+      joinedAtMs: nowMs,
       chosenMode: mode,
     };
     await this.createMatch(entryA, entryB, true);

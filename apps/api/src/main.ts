@@ -3,9 +3,15 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
+import { RedisIoAdapter } from './redis/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Attach Socket.IO Redis Adapter for horizontal scaling
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
   
   // Register cookie parser middleware
   app.use(cookieParser());

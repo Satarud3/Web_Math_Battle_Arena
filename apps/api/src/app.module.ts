@@ -13,9 +13,11 @@ import { PracticeModule } from './practice/practice.module';
 import { AchievementsModule } from './achievements/achievements.module';
 import { AiCoachModule } from './ai-coach/ai-coach.module';
 import { FriendsModule } from './friends/friends.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
+    RedisModule,
     PrismaModule,
     AuthModule,
     UsersModule,
